@@ -1,0 +1,15 @@
+{
+  "aws_access_key_id": "changeit",
+  "aws_secret_access_key": "changeit",
+  "region":"eu-west-1",
+  "HostedZoneId":"changeit",
+  "pemfile":"changeit.pem",
+  "domain":"changeit",
+  "domainUser" : "changeit",
+  "timezone":"Europe/Brussels",
+  "instance" : [
+      {"InstanceId" : "changeit",
+        "osuser" : "changeit",
+        "pemfile" : "changeit" }
+    ]
+}
