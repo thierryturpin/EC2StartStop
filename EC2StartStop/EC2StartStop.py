@@ -100,11 +100,9 @@ def get_instance_attributes(linstances):
                 dattributes.append(attributes)
     return dattributes
 
-
-
 def get_config(attr):
-    head, tail = os.path.split(os.getcwd())
-    filepath = os.path.join(head,'conf.json')
+    global gconf_file
+    filepath = gconf_file
     with open(filepath) as configfile:
         configdata = simplejson.load(configfile)
     if attr in configdata:
@@ -148,8 +146,12 @@ def get_instances_state():
     except:
         pass
 
-def main():
-#    click.clear()
+@click.command()
+@click.argument('conf_file', type=click.Path())
+def main(conf_file):
+    click.clear()
+    global gconf_file
+    gconf_file = conf_file
     try:
         while True:
             state = getattr(sys, 'frozen', False)
