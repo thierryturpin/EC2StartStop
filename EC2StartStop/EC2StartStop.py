@@ -9,7 +9,6 @@ import simplejson
 import os
 import sys
 
-
 def get_time():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
@@ -40,8 +39,6 @@ def get_fqdns():
         dns_records = dns_records[dns_records['Type'] == 'A']
         dns_records = dns_records.apply(dns_records_clean, axis=1)
         return dns_records
-
-
 
 def get_instance_attributes(linstances):
     report_time_zone = get_config('timezone')
@@ -286,7 +283,6 @@ def handle_connect(connect):
         click.echo(click.style('Invalid line index selection connect',fg='magenta'))
     time.sleep(3)
     main()
-
 
 def cover():
     covertext = '''
