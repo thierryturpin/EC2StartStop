@@ -9,6 +9,8 @@ import simplejson
 import os
 import sys
 
+#TODO issue when EC2 instance has no name tag
+
 def get_time():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
