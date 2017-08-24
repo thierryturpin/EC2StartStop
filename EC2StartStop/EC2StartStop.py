@@ -9,7 +9,6 @@ import simplejson
 import os
 import sys
 
-#TODO issue when EC2 instance has no name tag
 
 def get_time():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
@@ -41,6 +40,8 @@ def get_fqdns():
         dns_records = dns_records[dns_records['Type'] == 'A']
         dns_records = dns_records.apply(dns_records_clean, axis=1)
         return dns_records
+
+
 
 def get_instance_attributes(linstances):
     report_time_zone = get_config('timezone')
@@ -99,9 +100,11 @@ def get_instance_attributes(linstances):
                 dattributes.append(attributes)
     return dattributes
 
+
+
 def get_config(attr):
-    global gconf_file
-    filepath = gconf_file
+    head, tail = os.path.split(os.getcwd())
+    filepath = os.path.join(head,'conf.json')
     with open(filepath) as configfile:
         configdata = simplejson.load(configfile)
     if attr in configdata:
@@ -145,12 +148,8 @@ def get_instances_state():
     except:
         pass
 
-@click.command()
-@click.argument('conf_file', type=click.Path())
-def main(conf_file):
-    click.clear()
-    global gconf_file
-    gconf_file = conf_file
+def main():
+#    click.clear()
     try:
         while True:
             state = getattr(sys, 'frozen', False)
@@ -285,6 +284,7 @@ def handle_connect(connect):
         click.echo(click.style('Invalid line index selection connect',fg='magenta'))
     time.sleep(3)
     main()
+
 
 def cover():
     covertext = '''
