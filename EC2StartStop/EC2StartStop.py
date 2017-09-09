@@ -104,9 +104,8 @@ def get_instance_attributes(linstances):
 
 
 def get_config(attr):
-    head, tail = os.path.split(os.getcwd())
-    filepath = os.path.join(head,'conf.json')
-    with open(filepath) as configfile:
+    global gconf_file
+    with open(gconf_file) as configfile:
         configdata = simplejson.load(configfile)
     if attr in configdata:
         attr = configdata[attr]
@@ -152,8 +151,14 @@ def get_instances_state():
         pass
     return refresh_rate
 
+@click.command()
+@click.argument('conf_file')
+def get_config_file(conf_file):
+    global gconf_file
+    gconf_file = conf_file
+    main()
+
 def main():
-#    click.clear()
     try:
         while True:
             state = getattr(sys, 'frozen', False)
@@ -192,8 +197,8 @@ def handle_main():
 
 @click.command()
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
-
-def handle_start(start):
+@click.argument('conf_file')
+def handle_start(start,conf_file):
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     try:
@@ -214,8 +219,8 @@ def handle_start(start):
 
 @click.command()
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
-
-def handle_stop(stop):
+@click.argument('conf_file')
+def handle_stop(stop,conf_file):
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     try:
@@ -253,8 +258,8 @@ def handle_exit():
 
 @click.command()
 @click.option('--connect', prompt='Instance to connect', type=click.INT, help='Select started instance')
-
-def handle_connect(connect):
+@click.argument('conf_file')
+def handle_connect(connect,conf_file):
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     MACOS = sys.platform.startswith('darwin')
@@ -318,4 +323,4 @@ if __name__ == '__main__':
     global filters
     filters = True
     cover()
-    main()
+    get_config_file()
