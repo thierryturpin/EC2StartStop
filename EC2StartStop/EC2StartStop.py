@@ -9,7 +9,6 @@ import simplejson
 import os
 import sys
 
-
 def get_time():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
@@ -126,6 +125,7 @@ def get_instances():
     return instances
 
 def get_instances_state():
+    refresh_rate = 300
     try:
         instances = get_instances()
         ec2_df = get_ec2_monitor(instances)
@@ -143,10 +143,12 @@ def get_instances_state():
                 click.echo(click.style(table_line, fg='green', bold=bold))
             elif row[4] in ('pending','stopping'):
                 click.echo(click.style(table_line, fg='yellow'))
+                refresh_rate = 3
             else:
                 click.echo(click.style(table_line, fg='white',))
     except:
         pass
+    return refresh_rate
 
 def main():
 #    click.clear()
@@ -155,8 +157,8 @@ def main():
             state = getattr(sys, 'frozen', False)
             click.clear()
             print '{} - {} - Press: CTRL-C for all interactions'.format(get_time(), state)
-            get_instances_state()
-            time.sleep(300)
+
+            time.sleep(get_instances_state())
     except(KeyboardInterrupt):
         handle_main()
 
