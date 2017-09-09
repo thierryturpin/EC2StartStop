@@ -9,6 +9,8 @@ import simplejson
 import os
 import sys
 
+#TODO integrate the conf file argument
+
 def get_time():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
@@ -19,7 +21,7 @@ def get_ec2_monitor(instances):
     if filters == True:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
-    ec2_monitor.sort_values(['StateCode','Name',],ascending=[True,True],inplace=True)
+    ec2_monitor.sort_values(['Name',],ascending=[True],inplace=True)
     ec2_monitor = ec2_monitor.reset_index(drop=True)
     return ec2_monitor
 
@@ -125,7 +127,7 @@ def get_instances():
     return instances
 
 def get_instances_state():
-    refresh_rate = 300
+    refresh_rate = 60
     try:
         instances = get_instances()
         ec2_df = get_ec2_monitor(instances)
