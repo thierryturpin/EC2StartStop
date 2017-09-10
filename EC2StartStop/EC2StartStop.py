@@ -9,7 +9,7 @@ import simplejson
 import os
 import sys
 
-#TODO Only refresh screen if dataframe content changes
+#TODO
 
 def get_time():
     return(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
