@@ -9,7 +9,7 @@ import simplejson
 import os
 import sys
 
-#TODO Validate argument is conf file
+#TODO Only refresh screen if dataframe content changes
 
 def get_time():
     return(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
@@ -135,6 +135,7 @@ def get_instances():
 
 def get_instances_state():
     """Get data frame with all instances and return the refresh rate for the CLI.
+       Default refresh rate is 1 minute. Unless starting/stopping instances, refresh rate is 3 seconds.
        If uptime > 8H mark in bold.
     """
     refresh_rate = 60
@@ -166,11 +167,16 @@ def get_instances_state():
 @click.argument('conf_file')
 def get_config_file(conf_file):
     """The program takes 1 argument the conf file.
+    A conf file template can be found in: template.conf.json
     All further interactions are by CTRL-C.
     """
     global gconf_file
-    gconf_file = conf_file
-    main()
+    if os.path.isfile(conf_file):
+        gconf_file = conf_file
+        main()
+    else:
+        click.echo(click.style('Parameter is not a file, configuration file. See --help.', fg='red'))
+        time.sleep(3)
 
 def main():
     try:
