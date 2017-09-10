@@ -9,12 +9,14 @@ import simplejson
 import os
 import sys
 
-#TODO integrate the conf file argument
+#TODO Validate argument is conf file
 
 def get_time():
-    return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    return(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
 
 def get_ec2_monitor(instances):
+    """Format dataframe, column order. Only dipslay instaces of the last month. Order by instance description.
+    """
     global filters
     ec2_monitor = pd.DataFrame(get_instance_attributes(instances))
     ec2_monitor = ec2_monitor[['Name','PrivateIpAddress','PublicIp','State','LaunchTime','InstanceId','FQDN','uptime_hours','StateCode','Platform','osuser','pemfile']]
@@ -31,6 +33,8 @@ def dns_records_clean(ln):
     return ln
 
 def get_fqdns():
+    """If a hosted zone is foreseen, get DNS records.
+    """
     if get_config('HostedZoneId') != None:
         client = boto3.client('route53', aws_access_key_id=get_config('aws_access_key_id'), \
                           aws_secret_access_key=get_config('aws_secret_access_key'), \
@@ -43,8 +47,12 @@ def get_fqdns():
         return dns_records
 
 
-
 def get_instance_attributes(linstances):
+    """Format the dataframe.
+       Terminated instances are not listed - state 48.
+       Get the name tags, platform.
+       Get the uptime of the instance.
+    """
     report_time_zone = get_config('timezone')
     localtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     localtime = pd.Timestamp(localtime, tz=report_time_zone)
@@ -126,6 +134,9 @@ def get_instances():
     return instances
 
 def get_instances_state():
+    """Get data frame with all instances and return the refresh rate for the CLI.
+       If uptime > 8H mark in bold.
+    """
     refresh_rate = 60
     try:
         instances = get_instances()
@@ -154,6 +165,9 @@ def get_instances_state():
 @click.command()
 @click.argument('conf_file')
 def get_config_file(conf_file):
+    """The program takes 1 argument the conf file.
+    All further interactions are by CTRL-C.
+    """
     global gconf_file
     gconf_file = conf_file
     main()
@@ -164,7 +178,6 @@ def main():
             state = getattr(sys, 'frozen', False)
             click.clear()
             print '{} - {} - Press: CTRL-C for all interactions'.format(get_time(), state)
-
             time.sleep(get_instances_state())
     except(KeyboardInterrupt):
         handle_main()
@@ -197,7 +210,7 @@ def handle_main():
 
 @click.command()
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
-@click.argument('conf_file')
+@click.argument('conf_file') #Do not remove, enforced by click
 def handle_start(start,conf_file):
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
@@ -220,7 +233,7 @@ def handle_start(start,conf_file):
 @click.command()
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
-def handle_stop(stop,conf_file):
+def handle_stop(stop,conf_file): #Do not remove, enforced by click
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     try:
@@ -259,7 +272,7 @@ def handle_exit():
 @click.command()
 @click.option('--connect', prompt='Instance to connect', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
-def handle_connect(connect,conf_file):
+def handle_connect(connect,conf_file): #Do not remove, enforced by click
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     MACOS = sys.platform.startswith('darwin')
