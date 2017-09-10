@@ -144,6 +144,8 @@ def get_instances_state():
         ec2_df = get_ec2_monitor(instances)
         nameLen = ec2_df.Name.map(len).max()
         fqdnLen = ec2_df.FQDN.map(len).max()
+        click.clear()
+        print '{} - Press: CTRL-C for all interactions'.format(get_time())
         for row in ec2_df.itertuples():
             table_line = '{0:3}|{1:{nameLen}}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:8}|{5}|{8:4}|{6:19}|' \
             .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m %H:%M"), row[6], row[7], row[8], \
@@ -181,9 +183,6 @@ def get_config_file(conf_file):
 def main():
     try:
         while True:
-            state = getattr(sys, 'frozen', False)
-            click.clear()
-            print '{} - {} - Press: CTRL-C for all interactions'.format(get_time(), state)
             time.sleep(get_instances_state())
     except(KeyboardInterrupt):
         handle_main()
