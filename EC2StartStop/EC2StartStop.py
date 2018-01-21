@@ -1,3 +1,8 @@
+"""
+The EC2 monitor CLI
+Monitors all EC2 instances related to an account.
+The connect command will invoke the SSH command or the RDP application.
+"""
 import boto3
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -10,6 +15,7 @@ import os
 import sys
 
 #TODO
+# When connecting and instance is down prompt to start
 
 def get_time():
     return(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
@@ -19,7 +25,7 @@ def get_ec2_monitor(instances):
     """
     global filters
     ec2_monitor = pd.DataFrame(get_instance_attributes(instances))
-    ec2_monitor = ec2_monitor[['Name','PrivateIpAddress','PublicIp','State','LaunchTime','InstanceId','FQDN','uptime_hours','StateCode','Platform','osuser','pemfile']]
+    ec2_monitor = ec2_monitor[['Name', 'PrivateIpAddress', 'PublicIp', 'State', 'LaunchTime', 'InstanceId', 'FQDN', 'uptime_hours', 'StateCode', 'Platform', 'osuser', 'pemfile']]
     if filters == True:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
@@ -69,9 +75,12 @@ def get_instance_attributes(linstances):
             attributes = {}
             if linstance['Instances'][x]['State']['Code'] != 48:
                 attributes['InstanceId'] = linstance['Instances'][x]['InstanceId']
-                for Tag in linstance['Instances'][x]['Tags']:
-                    if Tag['Key'] == 'Name':
-                        attributes['Name'] = Tag['Value']
+                if 'Tags' in linstance['Instances'][x]:
+                    for Tag in linstance['Instances'][x]['Tags']:
+                        if Tag['Key'] == 'Name':
+                            attributes['Name'] = Tag['Value']
+                else:
+                    attributes['Name'] = '-'
                 if 'Platform' in linstance['Instances'][x]:
                     attributes['Platform'] = linstance['Instances'][x]['Platform']
                 else:
