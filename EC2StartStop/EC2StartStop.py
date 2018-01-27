@@ -75,11 +75,10 @@ def get_instance_attributes(linstances):
             attributes = {}
             if linstance['Instances'][x]['State']['Code'] != 48:
                 attributes['InstanceId'] = linstance['Instances'][x]['InstanceId']
-                if 'Tags' in linstance['Instances'][x]:
-                    for Tag in linstance['Instances'][x]['Tags']:
-                        if Tag['Key'] == 'Name':
-                            attributes['Name'] = Tag['Value']
-                else:
+                for Tag in linstance['Instances'][x]['Tags']:
+                    if Tag['Key'] == 'Name':
+                        attributes['Name'] = Tag['Value']
+                if not 'Name' in attributes:
                     attributes['Name'] = '-'
                 if 'Platform' in linstance['Instances'][x]:
                     attributes['Platform'] = linstance['Instances'][x]['Platform']
@@ -151,12 +150,12 @@ def get_instances_state():
     try:
         instances = get_instances()
         ec2_df = get_ec2_monitor(instances)
-        nameLen = ec2_df.Name.map(len).max()
-        fqdnLen = ec2_df.FQDN.map(len).max()
+        nameLen = ec2_df.Name.astype(str).map(len).max()
+        fqdnLen = ec2_df.FQDN.astype(str).map(len).max()
         click.clear()
         print '{} - Press: CTRL-C for all interactions'.format(get_time())
         for row in ec2_df.itertuples():
-            table_line = '{0:3}|{1:{nameLen}}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:8}|{5}|{8:4}|{6:19}|' \
+            table_line = '{0:3}|{1:{nameLen}}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5}|{8:4}|{6:19}|' \
             .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m %H:%M"), row[6], row[7], row[8], \
             nameLen=nameLen, fqdnLen=fqdnLen)
             if row[4] == 'running':
