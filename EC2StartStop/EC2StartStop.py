@@ -297,10 +297,7 @@ def handle_connect(connect,conf_file): #Do not remove, enforced by click
     pemfile = ec2_monitor['pemfile'][int(connect)]
     ip = ec2_monitor['PrivateIpAddress'][int(connect)]
     fqdn = ec2_monitor['FQDN'][int(connect)]
-    if fqdn != '-':
-        addr = fqdn
-    else:
-        addr = ip
+    addr = ip
 
     if WINDOWS:
         win = 'start mstsc /v {}'.format(addr)
