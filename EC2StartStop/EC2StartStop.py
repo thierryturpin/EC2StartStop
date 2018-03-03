@@ -294,15 +294,20 @@ def handle_connect(connect,conf_file): #Do not remove, enforced by click
     domainUser= get_config('domainUser')
 
     state = ec2_monitor['State'][int(connect)]
-    host = ec2_monitor['PrivateIpAddress'][int(connect)]
     pemfile = ec2_monitor['pemfile'][int(connect)]
+    ip = ec2_monitor['PrivateIpAddress'][int(connect)]
+    fqdn = ec2_monitor['FQDN'][int(connect)]
+    if fqdn != '-':
+        addr = fqdn
+    else:
+        addr = ip
 
     if WINDOWS:
-        win = 'start mstsc /v {}'.format(host)
-        lin = 'start cmd.exe /K bash ~ -c "ssh {}@{} -i {}"'.format(ec2_monitor['osuser'][connect], host, pemfile)
+        win = 'start mstsc /v {}'.format(addr)
+        lin = 'start cmd.exe /K bash ~ -c "ssh {}@{} -i {}"'.format(ec2_monitor['osuser'][connect], addr, pemfile)
     elif MACOS:
-        win = 'open rdp://full%20address=s:{}:3389&domain=s:{}&username=s:{}'.format(host, domain, domainUser)
-        lin = 'osascript -e \'tell application "Terminal" to do script "ssh {}@{} -i {}"\''.format(ec2_monitor['osuser'][connect], host, pemfile)
+        win = 'open rdp://full%20address=s:{}:3389&domain=s:{}&username=s:{}'.format(addr, domain, domainUser)
+        lin = 'osascript -e \'tell application "Terminal" to do script "ssh {}@{} -i {}"\''.format(ec2_monitor['osuser'][connect], addr, pemfile)
 
     try:
         if state == 'running':
