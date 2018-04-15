@@ -7,6 +7,7 @@
   "domain":"changeit",
   "domainUser" : "changeit",
   "timezone":"Europe/Brussels",
+  "winssh" : "putty|WSL",
   "instance" : [
       {"InstanceId" : "changeit",
         "osuser" : "changeit",
