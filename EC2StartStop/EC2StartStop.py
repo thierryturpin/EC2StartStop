@@ -17,6 +17,9 @@ import sys
 
 # TODO
 # When connecting and instance is down prompt to start
+# Add an option to register and manipulate the conf.json file
+# Add a validation option fo the conf.json file
+# Check motd for putty
 
 def get_time():
     return (time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
