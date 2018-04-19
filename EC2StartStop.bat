@@ -1,0 +1,2 @@
+@CALL "C:\Users\tturpin\AppData\Local\Continuum\Anaconda3\Scripts\activate" Airflow
+@CALL "python" C:\Users\tturpin\Documents\EC2StartStop-master\EC2StartStop\EC2StartStop.py C:\Users\tturpin\Documents\EC2StartStop-master\EC2StartStop\conf.json

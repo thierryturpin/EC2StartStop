@@ -47,7 +47,7 @@ def dns_records_clean(ln):
 def get_fqdns():
     """If a hosted zone is foreseen, get DNS records.
     """
-    if get_config('HostedZoneId') != None:
+    if get_config('HostedZoneId') is not None:
         client = boto3.client('route53', aws_access_key_id=get_config('aws_access_key_id'), \
                               aws_secret_access_key=get_config('aws_secret_access_key'), \
                               region_name=get_config('region'))
@@ -304,6 +304,10 @@ def handle_exit():
 @click.option('--connect', prompt='Instance to connect', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
 def handle_connect(connect, conf_file):  # Do not remove, enforced by click
+    """Fun with quotes.
+    Python needs a \ to escape a \
+    In osascript a double quote " needs to be escaped with a \
+    """
     instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     MACOS = sys.platform.startswith('darwin')
@@ -315,6 +319,7 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
     pemfile = ec2_monitor['pemfile'][int(connect)]
     ip = ec2_monitor['PrivateIpAddress'][int(connect)]
     fqdn = ec2_monitor['FQDN'][int(connect)]
+    name = ec2_monitor['Name'][int(connect)]
     addr = ip
 
     if WINDOWS:
@@ -325,8 +330,15 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
             lin = 'start putty.exe -ssh -i {} {}@{}'.format(pemfile, ec2_monitor['osuser'][connect], addr)
     elif MACOS:
         win = 'open rdp://full%20address=s:{}:3389&domain=s:{}&username=s:{}'.format(addr, domain, domainUser)
-        lin = 'osascript -e \'tell application "Terminal" to do script "ssh {}@{} -i {}"\''.format(
-            ec2_monitor['osuser'][connect], addr, pemfile)
+
+        sep = '#' * 80
+        mottdtxt = 'EC2 name: {name}\\nDNS name: {fqdn}'.format(name=name, fqdn=fqdn)
+        motdtt = '{sep}\\n{mottdtxt} \\n{sep}\\n'.format(sep=sep, mottdtxt=mottdtxt)
+        lin = '''osascript << EOD
+                    tell application "Terminal" to do script "ssh {}@{} \\
+                                                              -i {} \\
+                                                              -t 'clear;tput setaf 2;cat /etc/motd;echo -n \\"{}\\" ;tput sgr0; bash -i'"
+                 EOD'''.format(ec2_monitor['osuser'][connect], addr, pemfile, motdtt)
 
     try:
         if state == 'running':
@@ -341,7 +353,7 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
             click.echo(click.style('Instance is not in state running', fg='magenta'))
     except:
         click.echo(click.style('Invalid line index selection connect', fg='magenta'))
-    time.sleep(3)
+    time.sleep(2)
     main()
 
 
@@ -367,7 +379,7 @@ def cover():
                                                                           
                                                                           '''
     click.echo(click.style(covertext, fg='green'))
-    time.sleep(2)
+    time.sleep(0.5)
 
 
 if __name__ == '__main__':
