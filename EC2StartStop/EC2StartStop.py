@@ -24,6 +24,26 @@ import sys
 def get_time():
     return (time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
 
+def get_cpu_utilization(instance_id):
+
+    now = datetime.utcnow()
+
+    cloudwatch = boto3.resource('cloudwatch')
+    metric = cloudwatch.Metric('AWS/EC2', 'CPUUtilization')
+
+    response = metric.get_statistics(
+        Dimensions=[
+            {'Name': 'InstanceId', 'Value': instance_id},
+        ],
+        StartTime=now-relativedelta(hours=1),
+        EndTime=now,
+        Period=300,
+        Statistics=['Maximum'],
+    )
+
+    # return chronological results
+    return sorted(response['Datapoints'], key=lambda x: x['Timestamp'])
+
 
 def get_ec2_monitor(instances):
     """Format dataframe, column order. Only dipslay instaces of the last month. Order by instance description.
@@ -32,7 +52,7 @@ def get_ec2_monitor(instances):
     ec2_monitor = pd.DataFrame(get_instance_attributes(instances))
     ec2_monitor = ec2_monitor[
         ['Name', 'PrivateIpAddress', 'PublicIp', 'State', 'LaunchTime', 'InstanceId', 'FQDN', 'uptime_hours',
-         'StateCode', 'Platform', 'osuser', 'pemfile']]
+         'StateCode', 'Platform', 'osuser', 'pemfile', 'EMRNodeType', 'cpu']]
     if filters == True:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
@@ -87,8 +107,13 @@ def get_instance_attributes(linstances):
                 for Tag in linstance['Instances'][x]['Tags']:
                     if Tag['Key'] == 'Name':
                         attributes['Name'] = Tag['Value']
+                    if Tag['Key'] == 'aws:elasticmapreduce:instance-group-role':
+                        if Tag['Value'] == 'MASTER':
+                            attributes['EMRNodeType'] = 'M'
                 if not 'Name' in attributes:
                     attributes['Name'] = '-'
+                if not 'EMRNodeType' in attributes:
+                    attributes['EMRNodeType'] = ' '
                 if 'Platform' in linstance['Instances'][x]:
                     attributes['Platform'] = linstance['Instances'][x]['Platform']
                 else:
@@ -108,8 +133,15 @@ def get_instance_attributes(linstances):
                     uptime_hours = uptime / pd.Timedelta('1 hour')
                     uptime_hours = int(round(uptime_hours))
                     attributes['uptime_hours'] = uptime_hours
+                    if len(get_cpu_utilization(attributes['InstanceId'])) > 0:
+                        cpupct = get_cpu_utilization(attributes['InstanceId'])[-1]['Maximum']
+                        for z in range(1, 6):
+                            if z * 20 > cpupct:
+                                break
+                        attributes['cpu'] = '#' * z
                 else:
                     attributes['uptime_hours'] = ''
+                    attributes['cpu'] = ' ' * 5
                 attributes['PrivateIpAddress'] = linstance['Instances'][x]['PrivateIpAddress']
                 if 'Association' in linstance['Instances'][x]['NetworkInterfaces'][0]:
                     attributes['PublicIp'] = linstance['Instances'][x]['NetworkInterfaces'][0]['Association'][
@@ -166,10 +198,10 @@ def get_instances_state():
         nameLen = ec2_df.Name.astype(str).map(len).max()
         fqdnLen = ec2_df.FQDN.astype(str).map(len).max()
         click.clear()
-        print '{} - Press: CTRL-C for all interactions'.format(get_time())
+        print('{} - Press: CTRL-C for all interactions'.format(get_time()))
         for row in ec2_df.itertuples():
-            table_line = '{0:3}|{1:{nameLen}}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5}|{8:4}|{6:19}|' \
-                .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m %H:%M"), row[6], row[7], row[8], \
+            table_line = '{0:3}|{1:{nameLen}}|{9}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5}|{8:5}|{6:19}|{10:5}|' \
+                .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m %H:%M"), row[6], row[7], row[8], row[13], row[14], \
                         nameLen=nameLen, fqdnLen=fqdnLen)
             if row[4] == 'running':
                 if row[8] > 8:
