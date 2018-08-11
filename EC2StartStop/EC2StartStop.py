@@ -71,8 +71,8 @@ def get_fqdns():
     """If a hosted zone is foreseen, get DNS records.
     """
     if get_config('HostedZoneId') is not None:
-        client = boto3.client('route53', aws_access_key_id=get_config('aws_access_key_id'), \
-                              aws_secret_access_key=get_config('aws_secret_access_key'), \
+        client = boto3.client('route53', aws_access_key_id=get_config('aws_access_key_id'),
+                              aws_secret_access_key=get_config('aws_secret_access_key'),
                               region_name=get_config('region'))
 
         response = client.list_resource_record_sets(HostedZoneId=get_config('HostedZoneId'))
@@ -171,8 +171,8 @@ def get_config(attr):
 
 
 def get_client():
-    client = boto3.client('ec2', aws_access_key_id=get_config('aws_access_key_id'), \
-                          aws_secret_access_key=get_config('aws_secret_access_key'), \
+    client = boto3.client('ec2', aws_access_key_id=get_config('aws_access_key_id'),
+                          aws_secret_access_key=get_config('aws_secret_access_key'),
                           region_name=get_config('region'))
     return client
 
@@ -369,11 +369,12 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
         sep = '#' * 80
         mottdtxt = 'EC2 name: {name}\\nDNS name: {fqdn}'.format(name=name, fqdn=fqdn)
         motdtt = '{sep}\\n{mottdtxt} \\n{sep}\\n'.format(sep=sep, mottdtxt=mottdtxt)
-        lin = '''osascript << EOD
+        lin = '''osascript <<EOD
                     tell application "Terminal" to do script "ssh {}@{} \\
                                                               -i {} \\
                                                               -t 'clear;tput setaf 2;cat /etc/motd;echo -n \\"{}\\" ;tput sgr0; bash -i'"
-                 EOD'''.format(ec2_monitor['osuser'][connect], addr, pemfile, motdtt)
+                 '''.format(ec2_monitor['osuser'][connect], addr, pemfile, motdtt)
+        lin += '\n' + 'EOD'
 
     try:
         if state == 'running':
@@ -414,7 +415,7 @@ def cover():
                                                                           
                                                                           '''
     click.echo(click.style(covertext, fg='green'))
-    time.sleep(0.5)
+    time.sleep(0.2)
 
 
 if __name__ == '__main__':
