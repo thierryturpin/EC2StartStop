@@ -22,7 +22,7 @@ import sys
 # Check motd for putty
 
 def get_time():
-    return (time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()))
+    return time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
 
 def get_cpu_utilization(instance_id):
 
@@ -35,7 +35,7 @@ def get_cpu_utilization(instance_id):
         Dimensions=[
             {'Name': 'InstanceId', 'Value': instance_id},
         ],
-        StartTime=now-relativedelta(hours=1),
+        StartTime=now-relativedelta(minutes=10),
         EndTime=now,
         Period=300,
         Statistics=['Maximum'],
@@ -52,7 +52,7 @@ def get_ec2_monitor(instances):
     ec2_monitor = pd.DataFrame(get_instance_attributes(instances))
     ec2_monitor = ec2_monitor[
         ['Name', 'PrivateIpAddress', 'PublicIp', 'State', 'LaunchTime', 'InstanceId', 'FQDN', 'uptime_hours',
-         'StateCode', 'Platform', 'osuser', 'pemfile', 'EMRNodeType', 'cpu']]
+         'StateCode', 'Platform', 'osuser', 'pemfile', 'EMRNodeType', 'cpu', 'InstanceType']]
     if filters == True:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
@@ -104,6 +104,7 @@ def get_instance_attributes(linstances):
             attributes = {}
             if linstance['Instances'][x]['State']['Code'] != 48:
                 attributes['InstanceId'] = linstance['Instances'][x]['InstanceId']
+                attributes['InstanceType'] = linstance['Instances'][x]['InstanceType']
                 for Tag in linstance['Instances'][x]['Tags']:
                     if Tag['Key'] == 'Name':
                         attributes['Name'] = Tag['Value']
@@ -133,8 +134,9 @@ def get_instance_attributes(linstances):
                     uptime_hours = uptime / pd.Timedelta('1 hour')
                     uptime_hours = int(round(uptime_hours))
                     attributes['uptime_hours'] = uptime_hours
-                    if len(get_cpu_utilization(attributes['InstanceId'])) > 0:
-                        cpupct = get_cpu_utilization(attributes['InstanceId'])[-1]['Maximum']
+                    cpu_utilization = get_cpu_utilization(attributes['InstanceId'])
+                    if len(cpu_utilization) > 0:
+                        cpupct = cpu_utilization[-1]['Maximum']
                         for z in range(1, 6):
                             if z * 20 > cpupct:
                                 break
@@ -197,12 +199,14 @@ def get_instances_state():
         ec2_df = get_ec2_monitor(instances)
         nameLen = ec2_df.Name.astype(str).map(len).max()
         fqdnLen = ec2_df.FQDN.astype(str).map(len).max()
+        typeLen = ec2_df.InstanceType.astype(str).map(len).max()
+
         click.clear()
         print('{} - Press: CTRL-C for all interactions'.format(get_time()))
         for row in ec2_df.itertuples():
-            table_line = '{0:3}|{1:{nameLen}}|{9}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5}|{8:5}|{6:19}|{10:5}|' \
-                .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m %H:%M"), row[6], row[7], row[8], row[13], row[14], \
-                        nameLen=nameLen, fqdnLen=fqdnLen)
+            table_line = '{0:3}|{1:{nameLen}}|{9}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5} ->{8:5}|{6:19}|{10:5}|{11:{typeLen}}|' \
+                .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m/%y %H:%M"), row[6], row[7], row[8], row[13], row[14], row[15],
+                        nameLen=nameLen, fqdnLen=fqdnLen, typeLen=typeLen)
             if row[4] == 'running':
                 if row[8] > 8:
                     bold = True
