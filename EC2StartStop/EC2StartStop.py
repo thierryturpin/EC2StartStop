@@ -419,7 +419,6 @@ def cover():
                                                                           
                                                                           '''
     click.echo(click.style(covertext, fg='green'))
-    time.sleep(0.2)
 
 
 if __name__ == '__main__':
