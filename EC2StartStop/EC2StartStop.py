@@ -24,6 +24,7 @@ import sys
 def get_time():
     return time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
 
+
 def get_cpu_utilization(instance_id):
 
     now = datetime.utcnow()
@@ -53,7 +54,7 @@ def get_ec2_monitor(instances):
     ec2_monitor = ec2_monitor[
         ['Name', 'PrivateIpAddress', 'PublicIp', 'State', 'LaunchTime', 'InstanceId', 'FQDN', 'uptime_hours',
          'StateCode', 'Platform', 'osuser', 'pemfile', 'EMRNodeType', 'cpu', 'InstanceType']]
-    if filters == True:
+    if filters:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
     ec2_monitor.sort_values(['Name', ], ascending=[True], inplace=True)
@@ -111,9 +112,9 @@ def get_instance_attributes(linstances):
                     if Tag['Key'] == 'aws:elasticmapreduce:instance-group-role':
                         if Tag['Value'] == 'MASTER':
                             attributes['EMRNodeType'] = 'M'
-                if not 'Name' in attributes:
+                if 'Name' not in attributes:
                     attributes['Name'] = '-'
-                if not 'EMRNodeType' in attributes:
+                if 'EMRNodeType' not in attributes:
                     attributes['EMRNodeType'] = ' '
                 if 'Platform' in linstance['Instances'][x]:
                     attributes['Platform'] = linstance['Instances'][x]['Platform']
@@ -243,7 +244,7 @@ def main():
     try:
         while True:
             time.sleep(get_instances_state())
-    except(KeyboardInterrupt):
+    except KeyboardInterrupt:
         handle_main()
 
 
