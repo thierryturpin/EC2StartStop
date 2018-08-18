@@ -208,7 +208,7 @@ def get_instances_state():
         click.clear()
         print('{} - Press: CTRL-C for all interactions'.format(get_time()))
         for row in ec2_df.itertuples():
-            table_line = '{0:3}|{1:{nameLen}}|{9}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5} ->{8:5}|{6:19}|{10:5}|{11:{typeLen}}|' \
+            table_line = '{0:3}|{1:{nameLen}}|{9}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5} --{8:5}|{6:19}|{10:5}|{11:{typeLen}}|' \
                 .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m/%y %H:%M"), row[6], row[7], row[8], row[13], row[14], row[15],
                         nameLen=nameLen, fqdnLen=fqdnLen, typeLen=typeLen)
             if row[4] == 'running':
