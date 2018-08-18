@@ -1,4 +1,5 @@
 {
+  "filter":true,
   "aws_access_key_id": "changeit",
   "aws_secret_access_key": "changeit",
   "region":"eu-west-1",

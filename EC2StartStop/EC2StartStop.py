@@ -232,8 +232,10 @@ def get_config_file(conf_file):
     All further interactions are by CTRL-C.
     """
     global gconf_file
+    global filters
     if os.path.isfile(conf_file):
         gconf_file = conf_file
+        filters = get_config('filter')
         main()
     else:
         click.echo(click.style('Parameter is not a file, configuration file. See --help.', fg='red'))
@@ -423,7 +425,5 @@ def cover():
 
 
 if __name__ == '__main__':
-    global filters
-    filters = True
     cover()
     get_config_file()
