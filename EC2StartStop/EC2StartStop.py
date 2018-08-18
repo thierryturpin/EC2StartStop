@@ -29,7 +29,10 @@ def get_cpu_utilization(instance_id):
 
     now = datetime.utcnow()
 
-    cloudwatch = boto3.resource('cloudwatch')
+    cloudwatch = boto3.resource('cloudwatch', aws_access_key_id=get_config('aws_access_key_id'),
+                              aws_secret_access_key=get_config('aws_secret_access_key'),
+                              region_name=get_config('region'))
+
     metric = cloudwatch.Metric('AWS/EC2', 'CPUUtilization')
 
     response = metric.get_statistics(
