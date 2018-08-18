@@ -16,6 +16,7 @@ import sys
 
 
 # TODO
+# Move get_cpu_utilzation to a second thread
 # When connecting and instance is down prompt to start
 # Add an option to register and manipulate the conf.json file
 # Add a validation option fo the conf.json file
@@ -28,14 +29,9 @@ def get_time():
 def get_cpu_utilization(instance_id):
 
     now = datetime.utcnow()
-
-    cloudwatch = boto3.resource('cloudwatch', aws_access_key_id=get_config('aws_access_key_id'),
-                              aws_secret_access_key=get_config('aws_secret_access_key'),
-                              region_name=get_config('region'))
-
-    metric = cloudwatch.Metric('AWS/EC2', 'CPUUtilization')
-
-    response = metric.get_statistics(
+    response = get_client('cloudwatch').get_metric_statistics(
+        Namespace='AWS/EC2',
+        MetricName='CPUUtilization',
         Dimensions=[
             {'Name': 'InstanceId', 'Value': instance_id},
         ],
@@ -75,11 +71,7 @@ def get_fqdns():
     """If a hosted zone is foreseen, get DNS records.
     """
     if get_config('HostedZoneId') is not None:
-        client = boto3.client('route53', aws_access_key_id=get_config('aws_access_key_id'),
-                              aws_secret_access_key=get_config('aws_secret_access_key'),
-                              region_name=get_config('region'))
-
-        response = client.list_resource_record_sets(HostedZoneId=get_config('HostedZoneId'))
+        response = get_client('route53').list_resource_record_sets(HostedZoneId=get_config('HostedZoneId'))
         dns_records = pd.DataFrame(response['ResourceRecordSets'])
         dns_records = dns_records[dns_records['Type'] == 'A']
         dns_records = dns_records.apply(dns_records_clean, axis=1)
@@ -176,8 +168,8 @@ def get_config(attr):
         return attr
 
 
-def get_client():
-    client = boto3.client('ec2', aws_access_key_id=get_config('aws_access_key_id'),
+def get_client(service):
+    client = boto3.client(service, aws_access_key_id=get_config('aws_access_key_id'),
                           aws_secret_access_key=get_config('aws_secret_access_key'),
                           region_name=get_config('region'))
     return client
@@ -185,7 +177,7 @@ def get_client():
 
 def get_instances():
     try:
-        instances = get_client().describe_instances()
+        instances = get_client('ec2').describe_instances()
     except Exception as e:
         error_text = 'Unexpected error: {0}'.format(e)
         click.echo(click.style(error_text, fg='red'))
@@ -223,7 +215,7 @@ def get_instances_state():
             else:
                 click.echo(click.style(table_line, fg='white', ))
     except:
-        pass
+        print('Unhandled error')
     return refresh_rate
 
 
@@ -293,7 +285,7 @@ def handle_start(start, conf_file):
             id = ec2_monitor['InstanceId'][int(start)]
             instance_ids = []
             instance_ids.append(id)
-            response = get_client().start_instances(InstanceIds=instance_ids)
+            response = get_client('ec2').start_instances(InstanceIds=instance_ids)
             click.echo('Response %s' % response)
         else:
             click.echo(click.style('Instance is not in state stopped', fg='magenta'))
@@ -316,7 +308,7 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
             id = ec2_monitor['InstanceId'][int(stop)]
             instance_ids = []
             instance_ids.append(id)
-            response = get_client().stop_instances(InstanceIds=instance_ids)
+            response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
             click.echo('Response %s' % response)
         else:
             click.echo(click.style('Instance is not in state running', fg='magenta'))
@@ -333,7 +325,7 @@ def handle_stopall():
     instance_ids = []
     for instance in running.itertuples():
         instance_ids.append(instance[6])
-    response = get_client().stop_instances(InstanceIds=instance_ids)
+    response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
     click.echo('Response %s' % response)
     time.sleep(2)
     main()
