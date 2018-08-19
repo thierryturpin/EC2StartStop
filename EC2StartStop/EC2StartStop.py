@@ -15,6 +15,35 @@ import os
 import sys
 
 
+class cpu_usage:
+    cl_instances_cpu = []
+
+    def remove_prev_metric(self, instance):
+        for k in self.cl_instances_cpu:
+            if k['InstanceId'] == instance:
+                self.cl_instances_cpu.remove(k)
+
+    def get_cw_metrics(self, instances):
+        for instance in instances:
+            instance_cpu = {}
+            cpu_utilization = get_cpu_utilization(instance)
+            if len(cpu_utilization) > 0:
+                self.remove_prev_metric(instance)
+                cpupct = cpu_utilization[-1]['Maximum']
+                instance_cpu['InstanceId'] = instance
+                instance_cpu['cpupct'] = cpupct
+                print(instance, cpupct)
+                for z in range(1, 6):
+                    if z * 20 > cpupct:
+                        break
+                instance_cpu['cpupctblock'] = z
+                self.cl_instances_cpu.append(instance_cpu)
+
+    def get_instance_cpupctblock(self, instance):
+        for instances_cpu in self.cl_instances_cpu:
+            if instance == instances_cpu['InstanceId']:
+                return instances_cpu['cpupctblock']
+
 # TODO
 # Move get_cpu_utilzation to a second thread
 # When connecting and instance is down prompt to start
