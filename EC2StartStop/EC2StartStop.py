@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 The EC2 monitor CLI
 Monitors all EC2 instances related to an account.
@@ -211,16 +212,16 @@ def get_instances():
     return instances
 
 
-def get_cpu_metrics(linstances):
+def get_cpu_metrics():
     global ec2_cpu_usage
 
     while True:
-        #print('Calling metrics at {}'.format(get_time()))
+        instances = get_instances()
         cpu_for_instances = []
-        for linstance in linstances['Reservations']:
-            for x in range(0, len(linstance['Instances'])):
-                if linstance['Instances'][x]['State']['Code'] == 16:
-                    InstanceId = linstance['Instances'][x]['InstanceId']
+        for instance in instances['Reservations']:
+            for x in range(0, len(instance['Instances'])):
+                if instance['Instances'][x]['State']['Code'] == 16:
+                    InstanceId = instance['Instances'][x]['InstanceId']
                     cpu_for_instances.append(InstanceId)
         ec2_cpu_usage.get_cw_metrics(cpu_for_instances)
         time.sleep(90)
@@ -256,7 +257,7 @@ def get_instances_state(instances):
             else:
                 click.echo(click.style(table_line, fg='white', ))
     except:
-        print('Unhandled error')
+        click.echo(click.style('Unhandled error', fg='red'))
     return refresh_rate
 
 
@@ -269,9 +270,12 @@ def get_config_file(conf_file):
     """
     global gconf_file
     global filters
+    global deamon_start
+
     if os.path.isfile(conf_file):
         gconf_file = conf_file
         filters = get_config('filter')
+        deamon_start = False
         main()
     else:
         click.echo(click.style('Parameter is not a file, configuration file. See --help.', fg='red'))
@@ -280,14 +284,18 @@ def get_config_file(conf_file):
 
 def main():
     global ec2_cpu_usage
+    global instances
+    global deamon_start
 
     try:
         while True:
             instances = get_instances()
             ec2_cpu_usage = cpu_usage()
-            t1 = threading.Thread(target=get_cpu_metrics, args=(instances,))
-            t1.daemon = True
-            t1.start()
+            if not deamon_start:
+                t1 = threading.Thread(target=get_cpu_metrics)
+                t1.daemon = True
+                t1.start()
+                deamon_start = True
 
             time.sleep(get_instances_state(instances))
     except KeyboardInterrupt:
@@ -330,7 +338,7 @@ def handle_main():
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
 @click.argument('conf_file')  # Do not remove, enforced by click
 def handle_start(start, conf_file):
-    instances = get_instances()
+    #instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     try:
         state = ec2_monitor['State'][int(start)]
@@ -353,7 +361,7 @@ def handle_start(start, conf_file):
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
 def handle_stop(stop, conf_file):  # Do not remove, enforced by click
-    instances = get_instances()
+    #instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     try:
         state = ec2_monitor['State'][int(stop)]
@@ -376,7 +384,7 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
 @click.argument('conf_file')
 def handle_stopall(confirm, conf_file):  # Do not remove, enforced by click
     if confirm == 'y':
-        instances = get_instances()
+        #instances = get_instances()
         ec2_monitor = get_ec2_monitor(instances)
         running = ec2_monitor[ec2_monitor['State'] == 'running']
         instance_ids = []
@@ -402,7 +410,7 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
     Python needs a \ to escape a \
     In osascript a double quote " needs to be escaped with a \
     """
-    instances = get_instances()
+    #instances = get_instances()
     ec2_monitor = get_ec2_monitor(instances)
     MACOS = sys.platform.startswith('darwin')
     WINDOWS = sys.platform.startswith('win')
