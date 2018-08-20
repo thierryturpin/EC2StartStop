@@ -322,7 +322,7 @@ def handle_main():
         handle_exit()
     else:
         click.echo(click.style('Invalid action', fg='magenta'))
-        time.sleep(2)
+        time.sleep(1)
         main()
 
 
@@ -335,17 +335,17 @@ def handle_start(start, conf_file):
     try:
         state = ec2_monitor['State'][int(start)]
         if state == 'stopped':
-            click.echo('Instance will be started %s' % start)
+            click.echo('Instance will be started: %s' % start)
             id = ec2_monitor['InstanceId'][int(start)]
             instance_ids = []
             instance_ids.append(id)
             response = get_client('ec2').start_instances(InstanceIds=instance_ids)
-            click.echo('Response %s' % response)
+            #click.echo('Response %s' % response)
         else:
             click.echo(click.style('Instance is not in state stopped', fg='magenta'))
     except:
         click.echo(click.style('Invalid line index selection start', fg='magenta'))
-    time.sleep(2)
+    #time.sleep(2)
     main()
 
 
@@ -358,30 +358,33 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
     try:
         state = ec2_monitor['State'][int(stop)]
         if state == 'running':
-            click.echo('Instance will be stopped %s' % stop)
+            click.echo('Instance will be stopped: %s' % stop)
             id = ec2_monitor['InstanceId'][int(stop)]
             instance_ids = []
             instance_ids.append(id)
             response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
-            click.echo('Response %s' % response)
+            #click.echo('Response %s' % response)
         else:
             click.echo(click.style('Instance is not in state running', fg='magenta'))
     except:
         click.echo(click.style('Invalid line index selection stop', fg='magenta'))
-    time.sleep(2)
+    #time.sleep(2)
     main()
 
-
-def handle_stopall():
-    instances = get_instances()
-    ec2_monitor = get_ec2_monitor(instances)
-    running = ec2_monitor[ec2_monitor['State'] == 'running']
-    instance_ids = []
-    for instance in running.itertuples():
-        instance_ids.append(instance[6])
-    response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
-    click.echo('Response %s' % response)
-    time.sleep(2)
+@click.command()
+@click.option('--confirm', prompt='Confirm shut-down of all intances! y/n', type=click.Choice(['y', 'n']))
+@click.argument('conf_file')
+def handle_stopall(confirm, conf_file):  # Do not remove, enforced by click
+    if confirm == 'y':
+        instances = get_instances()
+        ec2_monitor = get_ec2_monitor(instances)
+        running = ec2_monitor[ec2_monitor['State'] == 'running']
+        instance_ids = []
+        for instance in running.itertuples():
+            instance_ids.append(instance[6])
+        response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
+        #click.echo('Response %s' % response)
+        time.sleep(2)
     main()
 
 
