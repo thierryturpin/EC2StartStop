@@ -13,6 +13,7 @@ import click
 import simplejson
 import os
 import sys
+import threading
 
 
 class cpu_usage:
@@ -32,12 +33,12 @@ class cpu_usage:
                 cpupct = cpu_utilization[-1]['Maximum']
                 instance_cpu['InstanceId'] = instance
                 instance_cpu['cpupct'] = cpupct
-                print(instance, cpupct)
                 for z in range(1, 6):
                     if z * 20 > cpupct:
                         break
                 instance_cpu['cpupctblock'] = z
                 self.cl_instances_cpu.append(instance_cpu)
+                #print('metrics collection done')
 
     def get_instance_cpupctblock(self, instance):
         for instances_cpu in self.cl_instances_cpu:
@@ -113,6 +114,7 @@ def get_instance_attributes(linstances):
        Get the name tags, platform.
        Get the uptime of the instance.
     """
+    global ec2_cpu_usage
     report_time_zone = get_config('timezone')
     localtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     localtime = pd.Timestamp(localtime, tz=report_time_zone)
@@ -159,13 +161,9 @@ def get_instance_attributes(linstances):
                     uptime_hours = uptime / pd.Timedelta('1 hour')
                     uptime_hours = int(round(uptime_hours))
                     attributes['uptime_hours'] = uptime_hours
-                    cpu_utilization = get_cpu_utilization(attributes['InstanceId'])
-                    if len(cpu_utilization) > 0:
-                        cpupct = cpu_utilization[-1]['Maximum']
-                        for z in range(1, 6):
-                            if z * 20 > cpupct:
-                                break
-                        attributes['cpu'] = '#' * z
+                    cpupctblock = ec2_cpu_usage.get_instance_cpupctblock(attributes['InstanceId'])
+                    if cpupctblock is not None:
+                        attributes['cpu'] = '#' * cpupctblock
                 else:
                     attributes['uptime_hours'] = ''
                     attributes['cpu'] = ' ' * 5
@@ -213,14 +211,28 @@ def get_instances():
     return instances
 
 
-def get_instances_state():
+def get_cpu_metrics(linstances):
+    global ec2_cpu_usage
+
+    while True:
+        #print('Calling metrics at {}'.format(get_time()))
+        cpu_for_instances = []
+        for linstance in linstances['Reservations']:
+            for x in range(0, len(linstance['Instances'])):
+                if linstance['Instances'][x]['State']['Code'] == 16:
+                    InstanceId = linstance['Instances'][x]['InstanceId']
+                    cpu_for_instances.append(InstanceId)
+        ec2_cpu_usage.get_cw_metrics(cpu_for_instances)
+        time.sleep(90)
+
+
+def get_instances_state(instances):
     """Get data frame with all instances and return the refresh rate for the CLI.
        Default refresh rate is 1 minute. Unless starting/stopping instances, refresh rate is 3 seconds.
        If uptime > 8H mark in bold.
     """
     refresh_rate = 60
     try:
-        instances = get_instances()
         ec2_df = get_ec2_monitor(instances)
         nameLen = ec2_df.Name.astype(str).map(len).max()
         fqdnLen = ec2_df.FQDN.astype(str).map(len).max()
@@ -267,9 +279,17 @@ def get_config_file(conf_file):
 
 
 def main():
+    global ec2_cpu_usage
+
     try:
         while True:
-            time.sleep(get_instances_state())
+            instances = get_instances()
+            ec2_cpu_usage = cpu_usage()
+            t1 = threading.Thread(target=get_cpu_metrics, args=(instances,))
+            t1.daemon = True
+            t1.start()
+
+            time.sleep(get_instances_state(instances))
     except KeyboardInterrupt:
         handle_main()
 
@@ -290,7 +310,12 @@ def handle_main():
     if action == 'd':
         handle_stop()
     if action == 'D':
-        handle_stopall()
+        if get_config('stop_all_enabled'):
+            handle_stopall()
+        else:
+            click.echo(click.style('Stop all disabled by configuration', fg='magenta'))
+            time.sleep(2)
+            main()
     if action == 'c':
         handle_connect()
     if action == 'q':
