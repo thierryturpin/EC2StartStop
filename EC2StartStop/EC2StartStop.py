@@ -206,10 +206,10 @@ def get_client(service):
 def get_instances():
     try:
         instances = get_client('ec2').describe_instances()
+        return instances
     except Exception as e:
         error_text = 'Unexpected error: {0}'.format(e)
         click.echo(click.style(error_text, fg='red'))
-    return instances
 
 
 def get_cpu_metrics():
