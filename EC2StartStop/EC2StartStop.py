@@ -47,10 +47,7 @@ class cpu_usage:
                 return instances_cpu['cpupctblock']
 
 # TODO
-# Move get_cpu_utilzation to a second thread
-# When connecting and instance is down prompt to start
-# Add an option to register and manipulate the conf.json file
-# Add a validation option fo the conf.json file
+# Add a search option
 # Check motd for putty
 
 def get_time():
