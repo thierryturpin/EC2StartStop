@@ -16,21 +16,37 @@ import os
 import sys
 import threading
 
+class globstate:
+
+    @staticmethod
+    def set_filter(filter):
+        globstate.cl_filter = filter
+
+    @staticmethod
+    def set_conf_file(conf_file):
+        globstate.cl_conf_file = conf_file
+
+    @staticmethod
+    def set_instances(instances):
+        globstate.cl_instances = instances
+
 
 class cpu_usage:
     cl_instances_cpu = []
 
-    def remove_prev_metric(self, instance):
-        for k in self.cl_instances_cpu:
+    @staticmethod
+    def remove_prev_metric(instance):
+        for k in cpu_usage.cl_instances_cpu:
             if k['InstanceId'] == instance:
-                self.cl_instances_cpu.remove(k)
+                cpu_usage.cl_instances_cpu.remove(k)
 
-    def get_cw_metrics(self, instances):
+    @staticmethod
+    def get_cw_metrics(instances):
         for instance in instances:
             instance_cpu = {}
             cpu_utilization = get_cpu_utilization(instance)
             if len(cpu_utilization) > 0:
-                self.remove_prev_metric(instance)
+                cpu_usage.remove_prev_metric(instance)
                 cpupct = cpu_utilization[-1]['Maximum']
                 instance_cpu['InstanceId'] = instance
                 instance_cpu['cpupct'] = cpupct
@@ -38,11 +54,12 @@ class cpu_usage:
                     if z * 20 > cpupct:
                         break
                 instance_cpu['cpupctblock'] = z
-                self.cl_instances_cpu.append(instance_cpu)
+                cpu_usage.cl_instances_cpu.append(instance_cpu)
                 #print('metrics collection done')
 
-    def get_instance_cpupctblock(self, instance):
-        for instances_cpu in self.cl_instances_cpu:
+    @staticmethod
+    def get_instance_cpupctblock(instance):
+        for instances_cpu in cpu_usage.cl_instances_cpu:
             if instance == instances_cpu['InstanceId']:
                 return instances_cpu['cpupctblock']
 
@@ -76,12 +93,11 @@ def get_cpu_utilization(instance_id):
 def get_ec2_monitor(instances):
     """Format dataframe, column order. Only dipslay instaces of the last month. Order by instance description.
     """
-    global filters
     ec2_monitor = pd.DataFrame(get_instance_attributes(instances))
     ec2_monitor = ec2_monitor[
         ['Name', 'PrivateIpAddress', 'PublicIp', 'State', 'LaunchTime', 'InstanceId', 'FQDN', 'uptime_hours',
          'StateCode', 'Platform', 'osuser', 'pemfile', 'EMRNodeType', 'cpu', 'InstanceType']]
-    if filters:
+    if globstate.cl_filter:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
     ec2_monitor.sort_values(['Name', ], ascending=[True], inplace=True)
@@ -112,7 +128,6 @@ def get_instance_attributes(linstances):
        Get the name tags, platform.
        Get the uptime of the instance.
     """
-    global ec2_cpu_usage
     report_time_zone = get_config('timezone')
     localtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     localtime = pd.Timestamp(localtime, tz=report_time_zone)
@@ -159,7 +174,7 @@ def get_instance_attributes(linstances):
                     uptime_hours = uptime / pd.Timedelta('1 hour')
                     uptime_hours = int(round(uptime_hours))
                     attributes['uptime_hours'] = uptime_hours
-                    cpupctblock = ec2_cpu_usage.get_instance_cpupctblock(attributes['InstanceId'])
+                    cpupctblock = cpu_usage.get_instance_cpupctblock(attributes['InstanceId'])
                     if cpupctblock is not None:
                         attributes['cpu'] = '#' * cpupctblock
                 else:
@@ -185,8 +200,7 @@ def get_instance_attributes(linstances):
 
 
 def get_config(attr):
-    global gconf_file
-    with open(gconf_file) as configfile:
+    with open(globstate.cl_conf_file) as configfile:
         configdata = simplejson.load(configfile)
     if attr in configdata:
         attr = configdata[attr]
@@ -210,8 +224,6 @@ def get_instances():
 
 
 def get_cpu_metrics():
-    global ec2_cpu_usage
-
     while True:
         instances = get_instances()
         cpu_for_instances = []
@@ -220,7 +232,7 @@ def get_cpu_metrics():
                 if instance['Instances'][x]['State']['Code'] == 16:
                     InstanceId = instance['Instances'][x]['InstanceId']
                     cpu_for_instances.append(InstanceId)
-        ec2_cpu_usage.get_cw_metrics(cpu_for_instances)
+        cpu_usage.get_cw_metrics(cpu_for_instances)
         time.sleep(90)
 
 
@@ -265,14 +277,10 @@ def get_config_file(conf_file):
     A conf file template can be found in: template.conf.json
     All further interactions are by CTRL-C.
     """
-    global gconf_file
-    global filters
-    global deamon_start
-
     if os.path.isfile(conf_file):
-        gconf_file = conf_file
-        filters = get_config('filter')
-        deamon_start = False
+        globstate.set_conf_file(conf_file)
+        globstate.cl_filter = get_config('filter')
+        globstate.cl_daemon_state = False
         main()
     else:
         click.echo(click.style('Parameter is not a file, configuration file. See --help.', fg='red'))
@@ -280,35 +288,29 @@ def get_config_file(conf_file):
 
 
 def main():
-    global ec2_cpu_usage
-    global instances
-    global deamon_start
-
     try:
         while True:
-            instances = get_instances()
-            ec2_cpu_usage = cpu_usage()
-            if not deamon_start:
+            globstate.set_instances(get_instances())
+            if not globstate.cl_daemon_state:
                 t1 = threading.Thread(target=get_cpu_metrics)
                 t1.daemon = True
                 t1.start()
-                deamon_start = True
+                globstate.cl_daemon_state = True
 
-            time.sleep(get_instances_state(instances))
+            time.sleep(get_instances_state(globstate.cl_instances))
     except KeyboardInterrupt:
         handle_main()
 
 
 def handle_main():
-    global filters
     click.echo('up, down, Down, filter, Filter, connect, quit ', nl=False)
     action = click.getchar()
     click.echo()
     if action == 'f':
-        filters = True
+        globstate.set_filter(True)
         main()
     if action == 'F':
-        filters = False
+        globstate.set_filter(False)
         main()
     if action == 'u':
         handle_start()
@@ -335,8 +337,7 @@ def handle_main():
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
 @click.argument('conf_file')  # Do not remove, enforced by click
 def handle_start(start, conf_file):
-    #instances = get_instances()
-    ec2_monitor = get_ec2_monitor(instances)
+    ec2_monitor = get_ec2_monitor(globstate.cl_instances)
     try:
         state = ec2_monitor['State'][int(start)]
         if state == 'stopped':
@@ -350,7 +351,6 @@ def handle_start(start, conf_file):
             click.echo(click.style('Instance is not in state stopped', fg='magenta'))
     except:
         click.echo(click.style('Invalid line index selection start', fg='magenta'))
-    #time.sleep(2)
     main()
 
 
@@ -358,8 +358,7 @@ def handle_start(start, conf_file):
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
 def handle_stop(stop, conf_file):  # Do not remove, enforced by click
-    #instances = get_instances()
-    ec2_monitor = get_ec2_monitor(instances)
+    ec2_monitor = get_ec2_monitor(globstate.cl_instances)
     try:
         state = ec2_monitor['State'][int(stop)]
         if state == 'running':
@@ -373,7 +372,6 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
             click.echo(click.style('Instance is not in state running', fg='magenta'))
     except:
         click.echo(click.style('Invalid line index selection stop', fg='magenta'))
-    #time.sleep(2)
     main()
 
 @click.command()
@@ -381,8 +379,7 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
 @click.argument('conf_file')
 def handle_stopall(confirm, conf_file):  # Do not remove, enforced by click
     if confirm == 'y':
-        #instances = get_instances()
-        ec2_monitor = get_ec2_monitor(instances)
+        ec2_monitor = get_ec2_monitor(globstate.cl_instances)
         running = ec2_monitor[ec2_monitor['State'] == 'running']
         instance_ids = []
         for instance in running.itertuples():
@@ -407,8 +404,7 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
     Python needs a \ to escape a \
     In osascript a double quote " needs to be escaped with a \
     """
-    #instances = get_instances()
-    ec2_monitor = get_ec2_monitor(instances)
+    ec2_monitor = get_ec2_monitor(globstate.cl_instances)
     MACOS = sys.platform.startswith('darwin')
     WINDOWS = sys.platform.startswith('win')
     domain = get_config('domain')
