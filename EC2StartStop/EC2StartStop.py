@@ -16,29 +16,29 @@ import os
 import sys
 import threading
 
-class globstate:
+class globState:
 
     @staticmethod
     def set_filter(filter):
-        globstate.cl_filter = filter
+        globState.cl_filter = filter
 
     @staticmethod
     def set_conf_file(conf_file):
-        globstate.cl_conf_file = conf_file
+        globState.cl_conf_file = conf_file
 
     @staticmethod
     def set_instances(instances):
-        globstate.cl_instances = instances
+        globState.cl_instances = instances
 
 
-class cpu_usage:
+class cpuUsage:
     cl_instances_cpu = []
 
     @staticmethod
     def remove_prev_metric(instance):
-        for k in cpu_usage.cl_instances_cpu:
+        for k in cpuUsage.cl_instances_cpu:
             if k['InstanceId'] == instance:
-                cpu_usage.cl_instances_cpu.remove(k)
+                cpuUsage.cl_instances_cpu.remove(k)
 
     @staticmethod
     def get_cw_metrics(instances):
@@ -46,7 +46,7 @@ class cpu_usage:
             instance_cpu = {}
             cpu_utilization = get_cpu_utilization(instance)
             if len(cpu_utilization) > 0:
-                cpu_usage.remove_prev_metric(instance)
+                cpuUsage.remove_prev_metric(instance)
                 cpupct = cpu_utilization[-1]['Maximum']
                 instance_cpu['InstanceId'] = instance
                 instance_cpu['cpupct'] = cpupct
@@ -54,12 +54,12 @@ class cpu_usage:
                     if z * 20 > cpupct:
                         break
                 instance_cpu['cpupctblock'] = z
-                cpu_usage.cl_instances_cpu.append(instance_cpu)
+                cpuUsage.cl_instances_cpu.append(instance_cpu)
                 #print('metrics collection done')
 
     @staticmethod
     def get_instance_cpupctblock(instance):
-        for instances_cpu in cpu_usage.cl_instances_cpu:
+        for instances_cpu in cpuUsage.cl_instances_cpu:
             if instance == instances_cpu['InstanceId']:
                 return instances_cpu['cpupctblock']
 
@@ -97,7 +97,7 @@ def get_ec2_monitor(instances):
     ec2_monitor = ec2_monitor[
         ['Name', 'PrivateIpAddress', 'PublicIp', 'State', 'LaunchTime', 'InstanceId', 'FQDN', 'uptime_hours',
          'StateCode', 'Platform', 'osuser', 'pemfile', 'EMRNodeType', 'cpu', 'InstanceType']]
-    if globstate.cl_filter:
+    if globState.cl_filter:
         date_from = datetime.today() - relativedelta(months=1)
         ec2_monitor = ec2_monitor[ec2_monitor['LaunchTime'] > date_from]
     ec2_monitor.sort_values(['Name', ], ascending=[True], inplace=True)
@@ -132,10 +132,10 @@ def get_instance_attributes(linstances):
     localtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     localtime = pd.Timestamp(localtime, tz=report_time_zone)
     dattributes = []
-    if get_config('HostedZoneId') != None:
-        HosteZoneLookup = True
-    else:
+    if get_config('HostedZoneId') is None:
         HosteZoneLookup = False
+    else:
+        HosteZoneLookup = True
     dns_records = get_fqdns()
     instance_connect = get_config('instance')
     default_pemfile = get_config('pemfile')
@@ -174,7 +174,7 @@ def get_instance_attributes(linstances):
                     uptime_hours = uptime / pd.Timedelta('1 hour')
                     uptime_hours = int(round(uptime_hours))
                     attributes['uptime_hours'] = uptime_hours
-                    cpupctblock = cpu_usage.get_instance_cpupctblock(attributes['InstanceId'])
+                    cpupctblock = cpuUsage.get_instance_cpupctblock(attributes['InstanceId'])
                     if cpupctblock is not None:
                         attributes['cpu'] = '#' * cpupctblock
                 else:
@@ -189,8 +189,7 @@ def get_instance_attributes(linstances):
                 if HosteZoneLookup:
                     num_dns_records = len(dns_records[(dns_records['IP'] == attributes['PrivateIpAddress'])]['FQDN'])
                     if num_dns_records == 1:
-                        attributes['FQDN'] = \
-                        dns_records[(dns_records['IP'] == attributes['PrivateIpAddress'])]['FQDN'].values[0]
+                        attributes['FQDN'] = dns_records[(dns_records['IP'] == attributes['PrivateIpAddress'])]['FQDN'].values[0]
                     else:
                         attributes['FQDN'] = '-'
                 else:
@@ -200,7 +199,7 @@ def get_instance_attributes(linstances):
 
 
 def get_config(attr):
-    with open(globstate.cl_conf_file) as configfile:
+    with open(globState.cl_conf_file) as configfile:
         configdata = simplejson.load(configfile)
     if attr in configdata:
         attr = configdata[attr]
@@ -232,7 +231,7 @@ def get_cpu_metrics():
                 if instance['Instances'][x]['State']['Code'] == 16:
                     InstanceId = instance['Instances'][x]['InstanceId']
                     cpu_for_instances.append(InstanceId)
-        cpu_usage.get_cw_metrics(cpu_for_instances)
+        cpuUsage.get_cw_metrics(cpu_for_instances)
         time.sleep(90)
 
 
@@ -278,9 +277,9 @@ def get_config_file(conf_file):
     All further interactions are by CTRL-C.
     """
     if os.path.isfile(conf_file):
-        globstate.set_conf_file(conf_file)
-        globstate.cl_filter = get_config('filter')
-        globstate.cl_daemon_state = False
+        globState.set_conf_file(conf_file)
+        globState.cl_filter = get_config('filter')
+        globState.cl_daemon_state = False
         main()
     else:
         click.echo(click.style('Parameter is not a file, configuration file. See --help.', fg='red'))
@@ -290,14 +289,14 @@ def get_config_file(conf_file):
 def main():
     try:
         while True:
-            globstate.set_instances(get_instances())
-            if not globstate.cl_daemon_state:
+            globState.set_instances(get_instances())
+            if not globState.cl_daemon_state:
                 t1 = threading.Thread(target=get_cpu_metrics)
                 t1.daemon = True
                 t1.start()
-                globstate.cl_daemon_state = True
+                globState.cl_daemon_state = True
 
-            time.sleep(get_instances_state(globstate.cl_instances))
+            time.sleep(get_instances_state(globState.cl_instances))
     except KeyboardInterrupt:
         handle_main()
 
@@ -307,10 +306,10 @@ def handle_main():
     action = click.getchar()
     click.echo()
     if action == 'f':
-        globstate.set_filter(True)
+        globState.set_filter(True)
         main()
     if action == 'F':
-        globstate.set_filter(False)
+        globState.set_filter(False)
         main()
     if action == 'u':
         handle_start()
@@ -337,7 +336,7 @@ def handle_main():
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
 @click.argument('conf_file')  # Do not remove, enforced by click
 def handle_start(start, conf_file):
-    ec2_monitor = get_ec2_monitor(globstate.cl_instances)
+    ec2_monitor = get_ec2_monitor(globState.cl_instances)
     try:
         state = ec2_monitor['State'][int(start)]
         if state == 'stopped':
@@ -358,7 +357,7 @@ def handle_start(start, conf_file):
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
 def handle_stop(stop, conf_file):  # Do not remove, enforced by click
-    ec2_monitor = get_ec2_monitor(globstate.cl_instances)
+    ec2_monitor = get_ec2_monitor(globState.cl_instances)
     try:
         state = ec2_monitor['State'][int(stop)]
         if state == 'running':
@@ -379,7 +378,7 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
 @click.argument('conf_file')
 def handle_stopall(confirm, conf_file):  # Do not remove, enforced by click
     if confirm == 'y':
-        ec2_monitor = get_ec2_monitor(globstate.cl_instances)
+        ec2_monitor = get_ec2_monitor(globState.cl_instances)
         running = ec2_monitor[ec2_monitor['State'] == 'running']
         instance_ids = []
         for instance in running.itertuples():
@@ -404,7 +403,7 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
     Python needs a \ to escape a \
     In osascript a double quote " needs to be escaped with a \
     """
-    ec2_monitor = get_ec2_monitor(globstate.cl_instances)
+    ec2_monitor = get_ec2_monitor(globState.cl_instances)
     MACOS = sys.platform.startswith('darwin')
     WINDOWS = sys.platform.startswith('win')
     domain = get_config('domain')

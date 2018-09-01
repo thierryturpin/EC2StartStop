@@ -3,3 +3,4 @@ boto3
 simplejson
 click
 colorama
+pytz
