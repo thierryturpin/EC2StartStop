@@ -35,18 +35,20 @@ class cpuUsage:
     cl_instances_cpu = []
 
     @staticmethod
-    def remove_prev_metric(instance):
-        for k in cpuUsage.cl_instances_cpu:
-            if k['InstanceId'] == instance:
-                cpuUsage.cl_instances_cpu.remove(k)
+    def get_cw_metrics():
+        instances = get_instances()
+        cpu_for_instances = []
+        cpuUsage.cl_instances_cpu = []
+        for instance in instances['Reservations']:
+            for x in range(0, len(instance['Instances'])):
+                if instance['Instances'][x]['State']['Code'] == 16:
+                    InstanceId = instance['Instances'][x]['InstanceId']
+                    cpu_for_instances.append(InstanceId)
 
-    @staticmethod
-    def get_cw_metrics(instances):
-        for instance in instances:
+        for instance in cpu_for_instances:
             instance_cpu = {}
             cpu_utilization = get_cpu_utilization(instance)
             if len(cpu_utilization) > 0:
-                cpuUsage.remove_prev_metric(instance)
                 cpupct = cpu_utilization[-1]['Maximum']
                 instance_cpu['InstanceId'] = instance
                 instance_cpu['cpupct'] = cpupct
@@ -55,7 +57,7 @@ class cpuUsage:
                         break
                 instance_cpu['cpupctblock'] = z
                 cpuUsage.cl_instances_cpu.append(instance_cpu)
-                #print('metrics collection done')
+        #print('metrics collection done')
 
     @staticmethod
     def get_instance_cpupctblock(instance):
@@ -224,14 +226,7 @@ def get_instances():
 
 def get_cpu_metrics():
     while True:
-        instances = get_instances()
-        cpu_for_instances = []
-        for instance in instances['Reservations']:
-            for x in range(0, len(instance['Instances'])):
-                if instance['Instances'][x]['State']['Code'] == 16:
-                    InstanceId = instance['Instances'][x]['InstanceId']
-                    cpu_for_instances.append(InstanceId)
-        cpuUsage.get_cw_metrics(cpu_for_instances)
+        cpuUsage.get_cw_metrics()
         time.sleep(90)
 
 
