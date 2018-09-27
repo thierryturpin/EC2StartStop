@@ -32,7 +32,7 @@ class globState:
 
 
 class cpuUsage:
-    cl_instances_cpu = []
+    #cl_instances_cpu = []
 
     @staticmethod
     def get_cw_metrics():
@@ -65,6 +65,7 @@ class cpuUsage:
             if instance == instances_cpu['InstanceId']:
                 return instances_cpu['cpupctblock']
 
+
 # TODO
 # Add a search option
 # Check motd for putty
@@ -82,7 +83,7 @@ def get_cpu_utilization(instance_id):
         Dimensions=[
             {'Name': 'InstanceId', 'Value': instance_id},
         ],
-        StartTime=now-relativedelta(minutes=10),
+        StartTime=now-relativedelta(minutes=60),
         EndTime=now,
         Period=300,
         Statistics=['Maximum'],
