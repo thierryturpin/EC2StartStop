@@ -148,12 +148,13 @@ def get_instance_attributes(linstances):
             if linstance['Instances'][x]['State']['Code'] != 48:
                 attributes['InstanceId'] = linstance['Instances'][x]['InstanceId']
                 attributes['InstanceType'] = linstance['Instances'][x]['InstanceType']
-                for Tag in linstance['Instances'][x]['Tags']:
-                    if Tag['Key'] == 'Name':
-                        attributes['Name'] = Tag['Value']
-                    if Tag['Key'] == 'aws:elasticmapreduce:instance-group-role':
-                        if Tag['Value'] == 'MASTER':
-                            attributes['EMRNodeType'] = 'M'
+                if 'Tags' in linstance['Instances'][x]:
+                    for Tag in linstance['Instances'][x]['Tags']:
+                        if Tag['Key'] == 'Name':
+                            attributes['Name'] = Tag['Value']
+                        if Tag['Key'] == 'aws:elasticmapreduce:instance-group-role':
+                            if Tag['Value'] == 'MASTER':
+                                attributes['EMRNodeType'] = 'M'
                 if 'Name' not in attributes:
                     attributes['Name'] = '-'
                 if 'EMRNodeType' not in attributes:
