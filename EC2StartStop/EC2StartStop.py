@@ -15,6 +15,7 @@ import simplejson
 import os
 import sys
 import threading
+import traceback
 
 class globState:
 
@@ -32,7 +33,7 @@ class globState:
 
 
 class cpuUsage:
-    #cl_instances_cpu = []
+    cl_instances_cpu = []
 
     @staticmethod
     def get_cw_metrics():
@@ -57,7 +58,6 @@ class cpuUsage:
                         break
                 instance_cpu['cpupctblock'] = z
                 cpuUsage.cl_instances_cpu.append(instance_cpu)
-        #print('metrics collection done')
 
     @staticmethod
     def get_instance_cpupctblock(instance):
@@ -162,6 +162,7 @@ def get_instance_attributes(linstances):
                 if 'Platform' in linstance['Instances'][x]:
                     attributes['Platform'] = linstance['Instances'][x]['Platform']
                 else:
+                    attributes['Platform'] = None
                     attributes['osuser'] = 'ec2-user'
                     attributes['pemfile'] = default_pemfile
                     for y in range(0, len(instance_connect)):
@@ -181,6 +182,8 @@ def get_instance_attributes(linstances):
                     cpupctblock = cpuUsage.get_instance_cpupctblock(attributes['InstanceId'])
                     if cpupctblock is not None:
                         attributes['cpu'] = '#' * cpupctblock
+                    else:
+                        attributes['cpu'] = ' ' * 5
                 else:
                     attributes['uptime_hours'] = ''
                     attributes['cpu'] = ' ' * 5
@@ -262,7 +265,7 @@ def get_instances_state(instances):
             else:
                 click.echo(click.style(table_line, fg='white', ))
     except:
-        click.echo(click.style('Unhandled error', fg='red'))
+        click.echo(click.style(traceback.format_exc(), fg='red'))
     return refresh_rate
 
 
