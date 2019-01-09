@@ -33,13 +33,12 @@ class globState:
 
 
 class cpuUsage:
-    cl_instances_cpu = []
 
     @staticmethod
     def get_cw_metrics():
-        instances = get_instances()
         cpu_for_instances = []
         cpuUsage.cl_instances_cpu = []
+        instances = globState.cl_instances
         for instance in instances['Reservations']:
             for x in range(0, len(instance['Instances'])):
                 if instance['Instances'][x]['State']['Code'] == 16:
