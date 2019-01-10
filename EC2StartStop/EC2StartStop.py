@@ -33,6 +33,7 @@ class globState:
 
 
 class cpuUsage:
+    cl_instances_cpu = []
 
     @staticmethod
     def get_cw_metrics():
