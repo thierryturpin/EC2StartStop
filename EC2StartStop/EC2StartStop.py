@@ -16,8 +16,14 @@ import os
 import sys
 import threading
 import traceback
+import re
 
 class globState:
+    cl_match_string = ''
+
+    @staticmethod
+    def set_match_string(match_string):
+        globState.cl_match_string = match_string
 
     @staticmethod
     def set_filter(filter):
@@ -40,24 +46,29 @@ class cpuUsage:
         cpu_for_instances = []
         cpuUsage.cl_instances_cpu = []
         instances = globState.cl_instances
-        for instance in instances['Reservations']:
-            for x in range(0, len(instance['Instances'])):
-                if instance['Instances'][x]['State']['Code'] == 16:
-                    InstanceId = instance['Instances'][x]['InstanceId']
-                    cpu_for_instances.append(InstanceId)
+        try:
+            for instance in instances['Reservations']:
+                for x in range(0, len(instance['Instances'])):
+                    if instance['Instances'][x]['State']['Code'] == 16:
+                        InstanceId = instance['Instances'][x]['InstanceId']
+                        cpu_for_instances.append(InstanceId)
 
-        for instance in cpu_for_instances:
-            instance_cpu = {}
-            cpu_utilization = get_cpu_utilization(instance)
-            if len(cpu_utilization) > 0:
-                cpupct = cpu_utilization[-1]['Maximum']
-                instance_cpu['InstanceId'] = instance
-                instance_cpu['cpupct'] = cpupct
-                for z in range(1, 6):
-                    if z * 20 > cpupct:
-                        break
-                instance_cpu['cpupctblock'] = z
-                cpuUsage.cl_instances_cpu.append(instance_cpu)
+            for instance in cpu_for_instances:
+                instance_cpu = {}
+                cpu_utilization = get_cpu_utilization(instance)
+                if len(cpu_utilization) > 0:
+                    cpupct = cpu_utilization[-1]['Maximum']
+                    instance_cpu['InstanceId'] = instance
+                    instance_cpu['cpupct'] = cpupct
+                    for z in range(1, 6):
+                        if z * 20 > cpupct:
+                            break
+                    instance_cpu['cpupctblock'] = z
+                    cpuUsage.cl_instances_cpu.append(instance_cpu)
+        except Exception as e:
+            error_text = 'No instances: {0}'.format(e)
+            click.echo(click.style(error_text, fg='red'))
+
 
     @staticmethod
     def get_instance_cpupctblock(instance):
@@ -67,8 +78,9 @@ class cpuUsage:
 
 
 # TODO
-# Add a search option
 # Check motd for putty
+# Add pricing of instance
+# Traceback via option
 
 def get_time():
     return time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
@@ -250,20 +262,26 @@ def get_instances_state(instances):
         click.clear()
         print('{} - Press: CTRL-C for all interactions'.format(get_time()))
         for row in ec2_df.itertuples():
+            reverse = False
+            bold = False
             table_line = '{0:3}|{1:{nameLen}}|{9}|{7:{fqdnLen}}|{2:15}|{3:15}|{4:14}|{5} --{8:5}|{6:19}|{10:5}|{11:{typeLen}}|' \
                 .format(row[0], row[1], row[2], row[3], row[4], row[5].strftime("%d/%m/%y %H:%M"), row[6], row[7], row[8], row[13], row[14], row[15],
                         nameLen=nameLen, fqdnLen=fqdnLen, typeLen=typeLen)
+
+            if globState.cl_match_string != '':
+                if re.search(globState.cl_match_string, row[1], re.IGNORECASE):
+                    reverse = True
+
             if row[4] == 'running':
                 if row[8] > 8:
                     bold = True
-                else:
-                    bold = False
-                click.echo(click.style(table_line, fg='green', bold=bold))
+
+                click.echo(click.style(table_line, fg='green', bold=bold, reverse=reverse))
             elif row[4] in ('pending', 'stopping'):
-                click.echo(click.style(table_line, fg='yellow'))
+                click.echo(click.style(table_line, fg='yellow', reverse=reverse))
                 refresh_rate = 3
             else:
-                click.echo(click.style(table_line, fg='white', ))
+                click.echo(click.style(table_line, fg='white', reverse=reverse))
     except:
         click.echo(click.style(traceback.format_exc(), fg='red'))
     return refresh_rate
@@ -302,7 +320,7 @@ def main():
 
 
 def handle_main():
-    click.echo('up, down, Down, filter, Filter, connect, quit ', nl=False)
+    click.echo('up, down, Down, filter, Filter, connect, quit, /', nl=False)
     action = click.getchar()
     click.echo()
     if action == 'f':
@@ -326,11 +344,19 @@ def handle_main():
         handle_connect()
     if action == 'q':
         handle_exit()
+    if action == '/':
+        handle_search()
     else:
         click.echo(click.style('Invalid action', fg='magenta'))
         time.sleep(1)
         main()
 
+@click.command()
+@click.option('--search', prompt='Search text', type=click.STRING, default='', help='Enter the text to match')
+@click.argument('conf_file')  # Do not remove, enforced by click
+def handle_search(search, conf_file):
+    globState.set_match_string(search)
+    main()
 
 @click.command()
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
@@ -345,7 +371,7 @@ def handle_start(start, conf_file):
             instance_ids = []
             instance_ids.append(id)
             response = get_client('ec2').start_instances(InstanceIds=instance_ids)
-            #click.echo('Response %s' % response)
+            # click.echo('Response %s' % response)
         else:
             click.echo(click.style('Instance is not in state stopped', fg='magenta'))
     except:
@@ -366,7 +392,7 @@ def handle_stop(stop, conf_file):  # Do not remove, enforced by click
             instance_ids = []
             instance_ids.append(id)
             response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
-            #click.echo('Response %s' % response)
+            # click.echo('Response %s' % response)
         else:
             click.echo(click.style('Instance is not in state running', fg='magenta'))
     except:
@@ -384,7 +410,7 @@ def handle_stopall(confirm, conf_file):  # Do not remove, enforced by click
         for instance in running.itertuples():
             instance_ids.append(instance[6])
         response = get_client('ec2').stop_instances(InstanceIds=instance_ids)
-        #click.echo('Response %s' % response)
+        # click.echo('Response %s' % response)
         time.sleep(2)
     main()
 
