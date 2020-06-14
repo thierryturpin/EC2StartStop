@@ -449,7 +449,7 @@ def handle_connect(connect, conf_file):  # Do not remove, enforced by click
         elif get_config('winssh') == 'putty':
             lin = 'start putty.exe -ssh -i {} {}@{}'.format(pemfile, ec2_monitor['osuser'][connect], addr)
     elif MACOS:
-        win = 'open rdp://full%20address=s:{}:3389&domain=s:{}&username=s:{}'.format(addr, domain, domainUser)
+        win = 'open "rdp://full%20address=s:{}:3389&domain=s:{}&username=s:{}"'.format(addr, domain, domainUser)
 
         sep = '#' * 80
         mottdtxt = 'EC2 name: {name}\\nDNS name: {fqdn}'.format(name=name, fqdn=fqdn)

@@ -1,4 +1,4 @@
 #!/bin/sh
-source /Users/thierryturpin/2.7EC2StartStop/bin/activate
-cd /Users/thierryturpin/Documents/PycharmProjects/EC2StartStop/EC2StartStop/
-python EC2StartStop.py /Users/thierryturpin/Documents/PycharmProjects/EC2StartStopConf.json
+source /Users/tt/PycharmProjects/EC2StartStop/venv/bin/activate
+cd /Users/tt/PycharmProjects/EC2StartStop/EC2StartStop
+python EC2StartStop.py /Users/tt/Documents/SYSTEM/EC2StartStopConf.json
