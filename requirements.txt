@@ -4,3 +4,4 @@ simplejson
 click
 colorama
 pytz
+tabulate
