@@ -30,6 +30,7 @@ class GlobalState:
     running_instances: dict = dict
     stopped_instances: dict = dict
     df_ec2_attributes: pd.core.frame.DataFrame = pd.DataFrame()
+    ec2_instance_count: int = 0
 
     def load_config_from_file(self):
         with open(self.conf_file) as file:
@@ -77,12 +78,12 @@ class GlobalState:
                     attributes['EMRNodeType'] = 'M'
 
             if instance['State']['Name'] == "running":
-                self.running_instances.append(cntr)
+                self.running_instances.append(instance['InstanceId'])
                 attributes['UptimeHours'] = int(
                     round((localtime - attributes['LocalLaunchTime']) / pd.Timedelta('1 hour')))
 
             if instance['State']['Name'] == "stopped":
-                self.stopped_instances.append(cntr)
+                self.stopped_instances.append(instance['InstanceId'])
 
             for instance_con in self.config_data.get('instance'):
                 if instance_con['InstanceId'] == instance['InstanceId']:
@@ -96,7 +97,7 @@ class GlobalState:
         df_ec2_attributes = df_ec2_attributes.reset_index(drop=True)
 
         self.df_ec2_attributes = df_ec2_attributes
-
+        self.ec2_instance_count = df_ec2_attributes.shape[0] - 1
 
 def cover():
     covertext = '''

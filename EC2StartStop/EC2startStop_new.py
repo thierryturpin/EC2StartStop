@@ -27,33 +27,36 @@ def click_get_config_file(conf_file):
 @click.option('--connect', prompt='Instance to connect', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
 def handle_connect(connect, conf_file):
-    if connect not in global_state.running_instances:
+    if connect < 0 or connect > global_state.ec2_instance_count:
+        click.echo(click.style(f'Invalid number: {connect}', fg='red'))
+
+    elif global_state.df_ec2_attributes['InstanceId'][connect] not in global_state.running_instances:
         click.echo(click.style(f'The selected line {connect} is not in a running state', fg='red'))
+    else:
+        ip = global_state.df_ec2_attributes['PrivateIpAddress'][connect]
+        name = global_state.df_ec2_attributes['Name'][connect]
+        osUser = global_state.df_ec2_attributes['osUser'][connect]
+        pemFile = global_state.df_ec2_attributes['pemFile'][connect]
 
-    ip = global_state.df_ec2_attributes['PrivateIpAddress'][connect]
-    name = global_state.df_ec2_attributes['Name'][connect]
-    osUser = global_state.df_ec2_attributes['osUser'][connect]
-    pemFile = global_state.df_ec2_attributes['pemFile'][connect]
+        if sys.platform.startswith('darwin'):
+            if global_state.df_ec2_attributes['Platform'][connect] == 'windows':
+                cmd = \
+                    f"""
+                    open "rdp://full%20address=s:{ip}:3389&domain=s:{global_state.config_data['domain']}&username=s:{global_state.config_data['domainUser']}"
+                    """
+            else:
+                banner = f'{SEP}\\nEC2 name: {name}\\nDNS name: \\n{SEP}\\n'
+                cmd = \
+                    f"""
+                        osascript <<EOD
+                        tell application "Terminal" to do script "ssh {osUser}@{ip} \\
+                                                                  -i {pemFile} \\
+                                                                  -t 'clear;tput setaf 2;cat /etc/motd;echo -n \\"{banner}\\" ;tput sgr0; bash -i'"
+                    """
+                cmd += '\n' + 'EOD'
 
-    if sys.platform.startswith('darwin'):
-        if global_state.df_ec2_attributes['Platform'][connect] == 'windows':
-            cmd = \
-                f"""
-                open "rdp://full%20address=s:{ip}:3389&domain=s:{global_state.config_data['domain']}&username=s:{global_state.config_data['domainUser']}"
-                """
-        else:
-            banner = f'{SEP}\\nEC2 name: {name}\\nDNS name: \\n{SEP}\\n'
-            cmd = \
-                f"""
-                    osascript <<EOD
-                    tell application "Terminal" to do script "ssh {osUser}@{ip} \\
-                                                              -i {pemFile} \\
-                                                              -t 'clear;tput setaf 2;cat /etc/motd;echo -n \\"{banner}\\" ;tput sgr0; bash -i'"
-                """
-            cmd += '\n' + 'EOD'
-
-        os.system(cmd)
-        click.echo(click.style(cmd, fg='yellow'))
+            os.system(cmd)
+            click.echo(click.style(cmd, fg='yellow'))
 
     time.sleep(3)
     main_loop()
@@ -62,26 +65,34 @@ def handle_connect(connect, conf_file):
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
 @click.argument('conf_file')
 def handle_start(start, conf_file):
-    if start not in global_state.stopped_instances:
+    if start < 0 or start > global_state.ec2_instance_count:
+        click.echo(click.style(f'Invalid number: {start}', fg='red'))
+
+    elif global_state.df_ec2_attributes['InstanceId'][start] not in global_state.stopped_instances:
         click.echo(click.style(f'The selected line {start} is not in a stopped state', fg='red'))
 
-    response = get_client('ec2', global_state.config_data['aws_access_key_id'],
-                          global_state.config_data['aws_secret_access_key'],
-                          global_state.config_data['region']).start_instances(InstanceIds=[global_state.df_ec2_attributes['InstanceId'][start]])
+    else:
+        response = get_client('ec2', global_state.config_data['aws_access_key_id'],
+                              global_state.config_data['aws_secret_access_key'],
+                              global_state.config_data['region']).start_instances(InstanceIds=[global_state.df_ec2_attributes['InstanceId'][start]])
 
+    time.sleep(2)
     main_loop()
 
 @click.command()
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
 @click.argument('conf_file')
 def handle_stop(stop, conf_file):
-    if stop not in global_state.running_instances:
+    if stop < 0 or stop > global_state.ec2_instance_count:
+        click.echo(click.style(f'Invalid number: {stop}', fg='red'))
+    elif global_state.df_ec2_attributes['InstanceId'][stop] not in global_state.running_instances:
         click.echo(click.style(f'The selected line {stop} is not in a running state', fg='red'))
 
-    response = get_client('ec2', global_state.config_data['aws_access_key_id'],
-                          global_state.config_data['aws_secret_access_key'],
-                          global_state.config_data['region']).stop_instances(InstanceIds=[global_state.df_ec2_attributes['InstanceId'][stop]])
-
+    else:
+        response = get_client('ec2', global_state.config_data['aws_access_key_id'],
+                              global_state.config_data['aws_secret_access_key'],
+                              global_state.config_data['region']).stop_instances(InstanceIds=[global_state.df_ec2_attributes['InstanceId'][stop]])
+    time.sleep(2)
     main_loop()
 
 def print_instances_grid():
