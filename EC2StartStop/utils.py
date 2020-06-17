@@ -1,5 +1,8 @@
 import os
 import sys
+import threading
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import time
 from pytz import timezone
 import pandas as pd
@@ -7,13 +10,14 @@ import simplejson
 import boto3
 import click
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from tabulate import tabulate
 
 pdtabulate = lambda df:tabulate(df, headers='keys', tablefmt='psql')
 
 SEP = '#' * 80
+
 
 def get_client(service, key_id, key_secret, region):
     client = boto3.client(service, aws_access_key_id=key_id,
@@ -22,15 +26,20 @@ def get_client(service, key_id, key_secret, region):
     return client
 
 
+def empty_dict():
+    return {}
+
 @dataclass
 class GlobalState:
     conf_file: str = ''
     config_data: dict = dict
     instances: dict = dict
-    running_instances: dict = dict
-    stopped_instances: dict = dict
+    running_instances: list = list
+    stopped_instances: list = list
     df_ec2_attributes: pd.core.frame.DataFrame = pd.DataFrame()
     ec2_instance_count: int = 0
+    cw_cpu_thread_started: bool = False
+    cpu_for_instance: dict = field(default_factory=empty_dict)
 
     def load_config_from_file(self):
         with open(self.conf_file) as file:
@@ -98,6 +107,7 @@ class GlobalState:
 
         self.df_ec2_attributes = df_ec2_attributes
         self.ec2_instance_count = df_ec2_attributes.shape[0] - 1
+
 
 def cover():
     covertext = '''

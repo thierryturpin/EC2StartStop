@@ -8,6 +8,7 @@ from utils import *
 
 global_state = GlobalState()
 
+
 @click.command()
 @click.argument('conf_file')
 def click_get_config_file(conf_file):
@@ -22,6 +23,7 @@ def click_get_config_file(conf_file):
     else:
         click.echo(click.style('Parameter is not a configuration file. See --help.', fg='red'))
         time.sleep(3)
+
 
 @click.command()
 @click.option('--connect', prompt='Instance to connect', type=click.INT, help='Select started instance')
@@ -58,8 +60,9 @@ def handle_connect(connect, conf_file):
             os.system(cmd)
             click.echo(click.style(cmd, fg='yellow'))
 
-    time.sleep(3)
+    time.sleep(1)
     main_loop()
+
 
 @click.command()
 @click.option('--start', prompt='Instance to start', type=click.INT, help='Select stopped instance')
@@ -74,10 +77,11 @@ def handle_start(start, conf_file):
     else:
         response = get_client('ec2', global_state.config_data['aws_access_key_id'],
                               global_state.config_data['aws_secret_access_key'],
-                              global_state.config_data['region']).start_instances(InstanceIds=[global_state.df_ec2_attributes['InstanceId'][start]])
+                              global_state.config_data['region']).start_instances(
+            InstanceIds=[global_state.df_ec2_attributes['InstanceId'][start]])
 
-    time.sleep(2)
     main_loop()
+
 
 @click.command()
 @click.option('--stop', prompt='Instance to stop', type=click.INT, help='Select started instance')
@@ -91,16 +95,17 @@ def handle_stop(stop, conf_file):
     else:
         response = get_client('ec2', global_state.config_data['aws_access_key_id'],
                               global_state.config_data['aws_secret_access_key'],
-                              global_state.config_data['region']).stop_instances(InstanceIds=[global_state.df_ec2_attributes['InstanceId'][stop]])
-    time.sleep(2)
+                              global_state.config_data['region']).stop_instances(
+            InstanceIds=[global_state.df_ec2_attributes['InstanceId'][stop]])
     main_loop()
+
 
 def print_instances_grid():
     """
     Print a formatted output of the dataframe
     :return:
     """
-    refresh_rate = 60
+    refresh_rate = 5
 
     global_state.set_ec2_attributes()
 
@@ -108,21 +113,24 @@ def print_instances_grid():
     uptimelen = global_state.df_ec2_attributes.UptimeHours.astype(str).map(len).max()
 
     click.clear()
-    print('Press: CTRL-C for all interactions')
+    print(f'{time.strftime("%H:%M:%S", time.localtime())} Press: CTRL-C for all interactions')
 
     for cntr, row in global_state.df_ec2_attributes.iterrows():
         # default values
         color = 'white'
-
-        table_line = f"{cntr:3}|{row['Name']:<{namelen}}|{row['EMRNodeType']}|{row['PrivateIpAddress']:<15}|" \
-                     f"{row['PublicIp']:<15}|{row['State']:<14}|{row['LocalLaunchTime'].strftime('%d/%m/%y %H:%M')}|" \
-                     f"{row['UptimeHours']:{uptimelen}}|{row['InstanceId']:<19}|"
+        cpu_for_instance = ''
 
         if row['State'] == 'running':
             color = 'green'
+            cpu_for_instance = '#' * int(global_state.cpu_for_instance.get(row['InstanceId'], 0) // 10)
         elif row['State'] in ('pending', 'stopping'):
             color = 'yellow'
             refresh_rate = 3
+
+        table_line = f"{cntr:3}|{row['Name']:<{namelen}}|{row['EMRNodeType']}|{row['PrivateIpAddress']:<15}|" \
+                     f"{row['PublicIp']:<15}|{row['State']:<14}|{row['LocalLaunchTime'].strftime('%d/%m/%y %H:%M')}|" \
+                     f"{row['UptimeHours']:{uptimelen}}|{row['InstanceId']:<19}|" \
+                     f"{cpu_for_instance:<10}|"
 
         click.echo(click.style(table_line, fg=color))
 
@@ -157,6 +165,34 @@ def handle_user_input():
         main_loop()
 
 
+def get_cpu_metrics_for_instance(instance_id):
+    now = datetime.utcnow()
+    response = get_client('cloudwatch', global_state.config_data['aws_access_key_id'],
+                          global_state.config_data['aws_secret_access_key'],
+                          global_state.config_data['region']).get_metric_statistics(
+        Namespace='AWS/EC2',
+        MetricName='CPUUtilization',
+        Dimensions=[
+            {'Name': 'InstanceId', 'Value': instance_id},
+        ],
+        StartTime=now - relativedelta(minutes=60),
+        EndTime=now,
+        Period=300,
+        Statistics=['Maximum'],
+    )
+
+    # return chronological results
+    return sorted(response['Datapoints'], key=lambda x: x['Timestamp'])
+
+
+def get_cpu_metrics_for_instances():
+    while True:
+        for instance in global_state.running_instances:
+            global_state.cpu_for_instance.update({instance: get_cpu_metrics_for_instance(instance)[-1]['Maximum']})
+
+        time.sleep(90)
+
+
 def main_loop():
     """
     The main loop is a separate function, because after input is handled, the main loop needs to be called again
@@ -166,6 +202,13 @@ def main_loop():
         while True:
             global_state.set_instances()
             time.sleep(print_instances_grid())
+
+            if not global_state.cw_cpu_thread_started:
+                t1 = threading.Thread(target=get_cpu_metrics_for_instances)
+                t1.daemon = True
+                t1.start()
+                global_state.cw_cpu_thread_started = True
+
     except KeyboardInterrupt:
         handle_user_input()
 
@@ -174,4 +217,3 @@ if __name__ == '__main__':
     cover()
     click_get_config_file.main(standalone_mode=False)
     main_loop()
-
