@@ -3,8 +3,15 @@ The EC2 monitor CLI
 Monitors all EC2 instances related to an account.
 The connect command will invoke the SSH command or the RDP application.
 """
+import os
+import sys
+import time
+import threading
+import re
+import click
+import arrow
 
-from utils import *
+from utils import SEP, GlobalState, get_client, cover
 
 global_state = GlobalState()
 
@@ -84,9 +91,9 @@ def handle_start(start, conf_file):
         click.echo(click.style(f'The selected line {start} is not in a stopped state', fg='red'))
 
     else:
-        response = get_client('ec2', global_state.config_data['aws_access_key_id'],
-                              global_state.config_data['aws_secret_access_key'],
-                              global_state.config_data['region']).start_instances(
+        get_client('ec2', global_state.config_data['aws_access_key_id'],
+                   global_state.config_data['aws_secret_access_key'],
+                   global_state.config_data['region']).start_instances(
             InstanceIds=[global_state.df_ec2_attributes['InstanceId'][start]])
 
     main_loop()
@@ -102,9 +109,9 @@ def handle_stop(stop, conf_file):
         click.echo(click.style(f'The selected line {stop} is not in a running state', fg='red'))
 
     else:
-        response = get_client('ec2', global_state.config_data['aws_access_key_id'],
-                              global_state.config_data['aws_secret_access_key'],
-                              global_state.config_data['region']).stop_instances(
+        get_client('ec2', global_state.config_data['aws_access_key_id'],
+                   global_state.config_data['aws_secret_access_key'],
+                   global_state.config_data['region']).stop_instances(
             InstanceIds=[global_state.df_ec2_attributes['InstanceId'][stop]])
     main_loop()
 
@@ -140,8 +147,10 @@ def print_instances_grid():
         cpu_for_instance = ''
         reverse = False
 
-        if (global_state.search_match_string != '' and re.search(global_state.search_match_string, row['Name'], re.IGNORECASE)) or \
-           (global_state.search_match_string != '' and re.search(global_state.search_match_string, row['InstanceId'], re.IGNORECASE)):
+        if (global_state.search_match_string != '' and re.search(global_state.search_match_string, row['Name'],
+                                                                 re.IGNORECASE)) or \
+                (global_state.search_match_string != '' and re.search(global_state.search_match_string,
+                                                                      row['InstanceId'], re.IGNORECASE)):
             reverse = True
 
         if row['State'] == 'running':

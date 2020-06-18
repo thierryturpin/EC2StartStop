@@ -1,8 +1,4 @@
-import os
 import sys
-import threading
-import time
-import re
 import pandas as pd
 import simplejson
 import boto3
@@ -26,7 +22,7 @@ def get_client(service, key_id, key_secret, region):
                               region_name=region)
 
     except ClientError as error:
-        click.echo(click.style(f'boto3 ClientError: {error}'), fg='red')
+        click.echo(click.style(f'boto3 ClientError: {error}', fg='red'))
         sys.exit()
 
     return client
