@@ -5,3 +5,4 @@ click
 colorama
 pytz
 tabulate
+arrow
