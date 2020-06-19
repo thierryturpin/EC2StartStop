@@ -118,7 +118,7 @@ def handle_stop(stop, conf_file):
 
 @click.command()
 @click.option('--search', prompt='Search text', type=click.STRING, default='', help='Enter the text to match')
-@click.argument('conf_file')  # Do not remove, enforced by click
+@click.argument('conf_file')  
 def handle_search(search, conf_file):
     global_state.search_match_string = search
     main_loop()
@@ -127,7 +127,7 @@ def handle_search(search, conf_file):
 def print_instances_grid():
     """
     Print a formatted output of the dataframe
-    :return:
+    :return: refresh rate, if instances state is changing, lower the rate
     """
     refresh_rate = 30
 
@@ -180,7 +180,6 @@ def handle_exit():
 def handle_user_input():
     """
     Handle all keyboard input
-    :return:
     """
     click.echo('up, down, connect, quit, refresh, /', nl=False)
     action = click.getchar()
@@ -207,6 +206,11 @@ def handle_user_input():
 
 
 def get_cpu_metrics_for_instance(instance_id):
+    """
+    Get CPUUtilization for the EC2 instance
+    :param instance_id:
+    :return:
+    """
     now = arrow.utcnow()
     response = get_client('cloudwatch', global_state.config_data['aws_access_key_id'],
                           global_state.config_data['aws_secret_access_key'],
@@ -227,6 +231,10 @@ def get_cpu_metrics_for_instance(instance_id):
 
 
 def get_cpu_metrics_for_instances():
+    """
+    Running in a separate thread, getting the CW metrics can be slow
+    :return:
+    """
     while True:
         for instance in global_state.running_instances:
             global_state.cpu_for_instance.update({instance: get_cpu_metrics_for_instance(instance)[-1]['Maximum']})
