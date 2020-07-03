@@ -103,7 +103,8 @@ class GlobalState:
                 if fqdn:
                     attributes['FQDN'] = fqdn[0].get('FQDN')
 
-            for tag in instance.get('Tags', {'Key': 'Name', 'Value': '-'}):
+            tags = instance.get('Tags', [{'Key': 'Name', 'Value': '-'}])
+            for tag in tags:
                 if tag['Key'] == 'Name':
                     attributes['Name'] = tag['Value']
                 if tag['Key'] == 'aws:elasticmapreduce:instance-group-role' and tag['Value'] == 'MASTER':
