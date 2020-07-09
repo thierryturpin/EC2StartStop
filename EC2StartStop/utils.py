@@ -2,7 +2,7 @@ import sys
 import pandas as pd
 import simplejson
 import boto3
-from botocore.exceptions import ClientError
+import botocore
 import click
 import arrow
 
@@ -16,15 +16,9 @@ SEP = '#' * 80
 
 
 def get_client(service, key_id, key_secret, region):
-    try:
-        client = boto3.client(service, aws_access_key_id=key_id,
-                              aws_secret_access_key=key_secret,
-                              region_name=region)
-
-    except ClientError as error:
-        click.echo(click.style(f'boto3 ClientError: {error}', fg='red'))
-        sys.exit()
-
+    client = boto3.client(service, aws_access_key_id=key_id,
+                          aws_secret_access_key=key_secret,
+                          region_name=region)
     return client
 
 
@@ -53,12 +47,16 @@ class GlobalState:
 
             return record
 
-        all_dns_records = pd.DataFrame(get_client('route53', self.config_data['aws_access_key_id'],
+        try:
+            all_dns_records = pd.DataFrame(get_client('route53', self.config_data['aws_access_key_id'],
                                                   self.config_data['aws_secret_access_key'],
                                                   self.config_data['region'],
-                                                  ).list_resource_record_sets(
-            HostedZoneId=self.config_data.get('HostedZoneId'))[
+                                                  ).list_resource_record_sets(HostedZoneId=self.config_data.get('HostedZoneId'))[
                                            'ResourceRecordSets'])
+
+        except botocore.exceptions.EndpointConnectionError as error:
+            click.echo(click.style(f'boto3 EndpointConnectionError: {error}', fg='red'))
+            sys.exit()
 
         a_dns_records = all_dns_records[all_dns_records['Type'] == 'A']
         self.a_dns_records = a_dns_records.apply(get_ip_fqdn, axis=1)
@@ -68,10 +66,15 @@ class GlobalState:
             self.config_data = simplejson.load(file)
 
     def set_instances(self):
-        self.instances = get_client('ec2', self.config_data['aws_access_key_id'],
-                                    self.config_data['aws_secret_access_key'],
-                                    self.config_data['region'],
-                                    ).describe_instances()
+        try:
+            self.instances = get_client('ec2', self.config_data['aws_access_key_id'],
+                                        self.config_data['aws_secret_access_key'],
+                                        self.config_data['region'],
+                                        ).describe_instances()
+
+        except botocore.exceptions.EndpointConnectionError as error:
+            click.echo(click.style(f'boto3 EndpointConnectionError: {error}', fg='red'))
+            sys.exit()
 
     def set_ec2_attributes(self):
         instances = [x['Instances'] for x in self.instances['Reservations']]

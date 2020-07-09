@@ -155,7 +155,7 @@ def print_instances_grid():
 
         if row['State'] == 'running':
             color = 'green'
-            cpu_for_instance = '#' * int(global_state.cpu_for_instance.get(row['InstanceId'], 0) // 10)
+            cpu_for_instance = u'\u2589' * int(global_state.cpu_for_instance.get(row['InstanceId'], 0) // 10)
         elif row['State'] in ('pending', 'stopping'):
             color = 'yellow'
             refresh_rate = 3
@@ -237,7 +237,9 @@ def get_cpu_metrics_for_instances():
     """
     while True:
         for instance in global_state.running_instances:
-            global_state.cpu_for_instance.update({instance: get_cpu_metrics_for_instance(instance)[-1]['Maximum']})
+            cpu_for_instance = get_cpu_metrics_for_instance(instance)
+            if cpu_for_instance:
+                global_state.cpu_for_instance.update({instance: cpu_for_instance[-1]['Maximum']})
 
         time.sleep(90)
 
@@ -252,13 +254,15 @@ def main_loop():
     try:
         while True:
             global_state.set_instances()
-            time.sleep(print_instances_grid())
+            refresh = print_instances_grid()
 
             if not global_state.cw_cpu_thread_started:
                 t1 = threading.Thread(target=get_cpu_metrics_for_instances)
                 t1.daemon = True
                 t1.start()
                 global_state.cw_cpu_thread_started = True
+
+            time.sleep(refresh)
 
     except KeyboardInterrupt:
         handle_user_input()

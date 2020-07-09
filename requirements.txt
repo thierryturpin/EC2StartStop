@@ -1,8 +1,7 @@
-pandas
-boto3
-simplejson
-click
-colorama
-pytz
-tabulate
-arrow
+pandas~=0.25.3
+boto3~=1.10.44
+simplejson~=3.17.0
+click~=7.0
+tabulate~=0.8.7
+arrow~=0.15.6
+botocore~=1.13.44
